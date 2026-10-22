@@ -39,6 +39,10 @@ export function SettingsForm({ settings: s }: { settings: Settings }) {
           </span>
         </label>
         <p className="text-sm text-ink-mute">Veľkosť prepravky: {s.crate_size} ks (mení sa v databáze).</p>
+        <div className="grid gap-5 pt-2 sm:grid-cols-[1fr_2fr]">
+          <Field label="ID prepravky v ActiWhere" name="crate_sku" defaultValue={s.crate_sku} error={e.crate_sku} hint="Prázdne = prepravky sa do objednávky nepridávajú." />
+          <Field label="Názov prepravky v ActiWhere" name="crate_erp_name" defaultValue={s.crate_erp_name} error={e.crate_erp_name} />
+        </div>
       </fieldset>
 
       <fieldset className="space-y-3">

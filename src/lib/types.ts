@@ -7,6 +7,8 @@ export type Product = {
   id: string
   slug: string
   sku: string
+  /** Presný názov položky v ActiWhere (ide do objednávky pre interný systém). */
+  erp_name: string
   name: string
   subtitle: string
   description: string
@@ -66,6 +68,8 @@ export type Settings = {
   auto_approve_known_ico: boolean
   crate_size: number
   cancel_window_minutes: number
+  crate_sku: string
+  crate_erp_name: string
 }
 
 export type OrderRow = {

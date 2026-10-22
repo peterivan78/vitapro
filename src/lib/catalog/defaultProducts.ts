@@ -1,7 +1,7 @@
 import type { Product } from '@/lib/types'
 
 // Údaje prepísané z tlačových podkladov etikiet (10/2026).
-// SKU sú DOČASNÉ – nahradiť internými kódmi AQUA PRO v admine.
+// sku + erp_name = ID a názov položky v ActiWhere (podklady/produkty/Items_VITAPRO.xlsx).
 // Tento zoznam slúži ako zdroj pre supabase/seed.sql a ako náhradný katalóg,
 // keď ešte nie je pripojená databáza (lokálny náhľad dizajnu).
 type DefaultProduct = Omit<Product, 'id' | 'status' | 'photo_url'>
@@ -9,7 +9,8 @@ type DefaultProduct = Omit<Product, 'id' | 'status' | 'photo_url'>
 export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   {
     slug: 'jablko-ribezla',
-    sku: 'VP-JABRIB-033',
+    sku: '80000227',
+    erp_name: 'VITAPRO Jabĺčko a ríbezľa 0,33 l',
     name: 'Jablčko a ríbezľa',
     subtitle: '100% prírodná šťava z jablka a čiernej ríbezle',
     description: 'Sladké slovenské jablká a výrazná čierna ríbezľa.',
@@ -23,7 +24,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'cvikla',
-    sku: 'VP-CVIKLA-033',
+    sku: '80000219',
+    erp_name: 'VITAPRO Cvikla 0,33 l',
     name: 'Cvikla',
     subtitle: '100% prírodná šťava z cvikly',
     description: 'Zemitá, jemne sladká šťava z čerstvej cvikly.',
@@ -37,7 +39,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'paradajka',
-    sku: 'VP-PARAD-033',
+    sku: '80000221',
+    erp_name: 'VITAPRO Paradajka 0,33 l',
     name: 'Paradajka',
     subtitle: '100% prírodná šťava zo slovenských paradajok',
     description: 'Čistá chuť dozretých slovenských paradajok.',
@@ -51,7 +54,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'mrkvicka',
-    sku: 'VP-MRKVA-033',
+    sku: '80000222',
+    erp_name: 'VITAPRO Mrkvička 0,33 l',
     name: 'Mrkvička',
     subtitle: '100% prírodná šťava z mrkvy, jablka a marhule',
     description: 'Mrkva zjemnená jablkom a marhuľou.',
@@ -65,7 +69,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'broskyna',
-    sku: 'VP-BROSK-033',
+    sku: '80000217',
+    erp_name: 'VITAPRO Broskyňka 0,33 l',
     name: 'Broskyňka',
     subtitle: '100% prírodná šťava z broskyne, jablka a mrkvy',
     description: 'Hodvábne broskyňové pyré s jablkom.',
@@ -79,7 +84,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'dulienka',
-    sku: 'VP-DULA-033',
+    sku: '80000220',
+    erp_name: 'VITAPRO Dulienka 0,33 l',
     name: 'Dulienka',
     subtitle: '100% prírodná šťava z dule, jablka a hrušky',
     description: 'Voňavá duľa, hruška a jablko.',
@@ -93,7 +99,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'aronilka',
-    sku: 'VP-ARONIA-033',
+    sku: '80000224',
+    erp_name: 'VITAPRO Áronilka 0,33 l',
     name: 'Arónilka',
     subtitle: '100% prírodná šťava z arónie, jablka a slivky',
     description: 'Tmavá arónia, slivka a jablko.',
@@ -107,7 +114,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'drienocka',
-    sku: 'VP-DRIEN-033',
+    sku: '80000223',
+    erp_name: 'VITAPRO Drienočka 0,33 l',
     name: 'Drienočka',
     subtitle: '100% prírodná šťava z drienky, jablka a slivky',
     description: 'Kyslastá drienka, slivka a jablko.',
@@ -121,7 +129,8 @@ export const DEFAULT_PRODUCTS: DefaultProduct[] = [
   },
   {
     slug: 'marhulienka',
-    sku: 'VP-MARHUL-033',
+    sku: '80000218',
+    erp_name: 'VITAPRO Marhulienka 0,33 l',
     name: 'Marhulienka',
     subtitle: '100% prírodná šťava z marhule, jablka a hrušky',
     description: 'Letná marhuľa s jablkom a hruškou.',

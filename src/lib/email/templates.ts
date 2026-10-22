@@ -149,6 +149,7 @@ ${customerRows
   .join('')}
 </table>
 ${itemsTableHtml(p)}
+${p.packaging ? `<p style="margin:0;font-size:14px">Prepravky: ${escapeHtml(p.packaging.name)} <span style="color:#8a847b">[${escapeHtml(p.packaging.sku)}]</span> – ${p.packaging.quantity} ks</p>` : ''}
 <p style="margin:16px 0 4px;font-weight:bold">Dodacia adresa${p.delivery.address.label ? ` (${escapeHtml(p.delivery.address.label)})` : ''}</p>
 <p style="margin:0">${addressLines(p.delivery.address).map(escapeHtml).join('<br>')}</p>
 <p style="margin:16px 0 0"><strong>Požadovaný termín:</strong> ${formatDateSk(p.delivery.requested_date)}</p>
@@ -164,7 +165,9 @@ ${customerRows.map(([k, v]) => `${k}: ${v}`).join('\n')}
 
 POLOŽKY
 ${itemsText(p)}
-SPOLU: ${p.totals.units} ks (${cratesLabel(p.totals.crates)} po ${p.totals.crate_size} ks)
+SPOLU: ${p.totals.units} ks (${cratesLabel(p.totals.crates)} po ${p.totals.crate_size} ks)${
+    p.packaging ? `\nPREPRAVKY: ${p.packaging.name} [${p.packaging.sku}] – ${p.packaging.quantity} ks` : ''
+  }
 
 DODACIA ADRESA${p.delivery.address.label ? ` (${p.delivery.address.label})` : ''}
 ${addressLines(p.delivery.address).join('\n')}

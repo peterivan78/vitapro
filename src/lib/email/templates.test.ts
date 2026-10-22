@@ -38,6 +38,7 @@ const payload = buildOrderPayload({
   requestedDate: '2026-11-03',
   note: '  ',
   crateSize: 12,
+  crate: { sku: '80000225', name: 'VITAPRO prepravka na 12 ks' },
   items: [
     { sku: 'VP-CVIKLA-033', name: 'Cvikla', quantity: 18 },
     { sku: 'VP-DULA-033', name: 'Dulienka', quantity: 6 },
@@ -50,6 +51,7 @@ describe('buildOrderPayload', () => {
     expect(payload.items.map((i) => i.line)).toEqual([1, 2])
     expect(payload.totals).toEqual({ units: 24, crates: 2, crate_size: 12 })
     expect(payload.note).toBeNull()
+    expect(payload.packaging).toEqual({ sku: '80000225', name: 'VITAPRO prepravka na 12 ks', quantity: 2, unit: 'ks' })
   })
 })
 

@@ -103,7 +103,7 @@ export async function placeOrder(profile: Profile, input: PlaceOrderInput) {
   const items = [...merged.entries()]
     .map(([id, quantity]) => ({ product: byId.get(id)!, quantity }))
     .sort((a, b) => a.product.sort_order - b.product.sort_order)
-    .map(({ product, quantity }) => ({ product_id: product.id, sku: product.sku, name: product.name, quantity }))
+    .map(({ product, quantity }) => ({ product_id: product.id, sku: product.sku, name: product.erp_name || product.name, quantity }))
 
   const { data: created, error } = await db
     .rpc('create_order', {
@@ -130,6 +130,7 @@ export async function placeOrder(profile: Profile, input: PlaceOrderInput) {
     note: input.note,
     crateSize: settings.crate_size,
     items,
+    crate: { sku: settings.crate_sku, name: settings.crate_erp_name },
   })
 
   // Objednávka je uložená – zlyhanie emailu ju nesmie zrušiť. Stav odoslania
@@ -184,6 +185,7 @@ async function sendCustomerConfirmation(orderId: string, payload: OrderPayload, 
 /** Opätovné odoslanie emailov k uloženej objednávke (z adminu). */
 export async function resendOrderEmails(orderId: string, which: 'internal' | 'customer' | 'both') {
   const db = createServiceClient()
+  const settings = await getSettings()
   const { data: order } = await db.from('orders').select('*, order_items(*)').eq('id', orderId).single<OrderRow & { order_items: OrderItemRow[] }>()
   if (!order) throw new OrderError('Objednávka neexistuje.')
   const payload = buildOrderPayload({
@@ -195,6 +197,7 @@ export async function resendOrderEmails(orderId: string, which: 'internal' | 'cu
     note: order.note,
     crateSize: order.crate_size,
     items: [...order.order_items].sort((a, b) => a.line_no - b.line_no),
+    crate: { sku: settings.crate_sku, name: settings.crate_erp_name },
   })
   return sendOrderEmails(orderId, payload, which)
 }

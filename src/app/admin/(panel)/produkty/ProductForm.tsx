@@ -40,8 +40,9 @@ export function ProductForm({ product }: { product?: Product }) {
               if (!slugTouched) setSlug(slugify(ev.target.value))
             }}
           />
-          <Field label="SKU / interný kód" name="sku" required defaultValue={p?.sku} error={e.sku} hint="Musí sedieť s interným systémom." />
+          <Field label="ID v ActiWhere" name="sku" required defaultValue={p?.sku} error={e.sku} hint="Musí sedieť s interným systémom." />
         </div>
+        <Field label="Názov v ActiWhere" name="erp_name" defaultValue={p?.erp_name} error={e.erp_name} hint="Presne ako v internom systéme. Ide do objednávky; na webe sa zobrazuje „Názov“." />
         <div className="grid gap-5 sm:grid-cols-2">
           <Field
             label="Adresa (slug)"

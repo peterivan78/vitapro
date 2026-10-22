@@ -11,6 +11,8 @@ export const DEFAULT_SETTINGS: Settings = {
   auto_approve_known_ico: false,
   crate_size: 12,
   cancel_window_minutes: 120,
+  crate_sku: '80000225',
+  crate_erp_name: 'VITAPRO prepravka na 12 ks',
 }
 
 export async function getSettings(): Promise<Settings> {

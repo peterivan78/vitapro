@@ -5,6 +5,7 @@ import { setOrderStatusAction } from '@/app/admin/actions'
 import { AdminTitle } from '@/components/admin/ui'
 import { formatDateSk, formatDateTimeSk } from '@/lib/email/templates'
 import { buildOrderPayload } from '@/lib/orders/orderPayload'
+import { getSettings } from '@/lib/settings'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ORDER_STATUS_LABEL, type OrderItemRow, type OrderRow, type OrderStatus } from '@/lib/types'
 import { ResendEmails } from './ResendEmails'
@@ -22,6 +23,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps<'/admin
     .maybeSingle<OrderRow & { order_items: OrderItemRow[] }>()
   if (!order) notFound()
 
+  const settings = await getSettings()
   const items = [...order.order_items].sort((a, b) => a.line_no - b.line_no)
   const c = order.customer
   const d = order.delivery_address
@@ -35,6 +37,7 @@ export default async function AdminOrderDetailPage({ params }: PageProps<'/admin
       note: order.note,
       crateSize: order.crate_size,
       items,
+      crate: { sku: settings.crate_sku, name: settings.crate_erp_name },
     }),
     null,
     2,

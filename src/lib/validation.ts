@@ -86,6 +86,7 @@ export const productSchema = z.object({
     .toLowerCase()
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Len malé písmená bez diakritiky, čísla a pomlčky.'),
   sku: required(60),
+  erp_name: line(200),
   subtitle: line(200),
   description: z.string().trim().max(1000),
   composition: z.string().trim().max(1000),
@@ -103,6 +104,8 @@ export const settingsSchema = z.object({
   sales_email: z.string().trim().email('Neplatný email.'),
   sales_phone: line(40),
   auto_approve_known_ico: z.boolean(),
+  crate_sku: line(60),
+  crate_erp_name: line(200),
   cancel_window_minutes: z.coerce.number().int().min(0, 'Minimálne 0.').max(10080, 'Najviac 7 dní (10080 min).'),
 })
 

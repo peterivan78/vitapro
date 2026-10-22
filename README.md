@@ -43,7 +43,7 @@ Pri zmene štruktúry treba zvýšiť verziu, aby sa interná AI nepomýlila.
    update public.profiles set role = 'admin', status = 'approved' where email = 'vas@email.sk';
    ```
    Pri prvom vstupe do `/admin` web vyzve na nastavenie overovacej aplikácie (Google/Microsoft Authenticator).
-5. V admine doplniť **skutočné SKU** produktov (teraz sú dočasné `VP-…`) a kontakt na obchodné oddelenie.
+5. V admine doplniť kontakt na obchodné oddelenie. ID a názvy produktov sú podľa ActiWhere (`podklady/produkty/Items_VITAPRO.xlsx`, migrácia 0003).
 
 ## Vývoj
 
