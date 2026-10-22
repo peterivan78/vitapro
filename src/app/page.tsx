@@ -1,4 +1,4 @@
-import Image, { getImageProps } from 'next/image'
+import Image from 'next/image'
 import Link from 'next/link'
 import { OrderBar } from '@/components/cart/OrderBar'
 import { ProductGrid } from '@/components/catalog/ProductGrid'
@@ -42,60 +42,51 @@ export default async function HomePage() {
 }
 
 function Hero({ ordering, loggedIn }: { ordering: boolean; loggedIn: boolean }) {
-  const common = { alt: '', sizes: '100vw', priority: true } as const
-  const {
-    props: { srcSet: desktop },
-  } = getImageProps({ ...common, src: '/img/hero.webp', width: 2400, height: 1747, quality: 75 })
-  const {
-    props: { srcSet: mobile, ...rest },
-  } = getImageProps({ ...common, src: '/img/hero-mobile.webp', width: 1200, height: 2133, quality: 75 })
-
   return (
-    <section className="relative isolate overflow-hidden bg-night text-white">
-      <div className="relative z-10 mx-auto flex max-w-6xl flex-col px-4 pb-4 pt-14 sm:px-6 md:min-h-[78vh] md:justify-center md:py-20">
-        <div className="max-w-[33rem]">
-          <p className="eyebrow text-white/60">Pre obchodných partnerov AQUA PRO EUROPE</p>
-          <h1 className="mt-5 font-display text-[2.5rem] leading-[1.05] sm:text-[3.4rem]">
-            100% prírodné šťavy <em className="font-normal">zo slovenských sadov a polí</em>
-          </h1>
-          <p className="mt-6 max-w-md text-lg leading-relaxed text-white/75">
-            Lisované z čerstvého ovocia a zeleniny. Bez pridaného cukru, bez konzervantov, nie z koncentrátu.
-          </p>
-          <div className="mt-9 flex flex-wrap gap-3">
-            {ordering ? (
-              <Link href="#stavy" className="btn btn-light">
-                Objednať
+    <section className="overflow-hidden bg-night text-white md:grid md:grid-cols-[40%_60%] md:items-center">
+      {/* Ľavý okraj textu zarovnaný s obsahom stránky (max-w-6xl). */}
+      <div className="px-4 pb-10 pt-14 sm:px-6 md:py-16 md:pl-[max(1.5rem,calc((100vw-72rem)/2+1.5rem))] md:pr-8">
+        <p className="eyebrow text-white/60">Pre obchodných partnerov AQUA PRO EUROPE</p>
+        <h1 className="mt-5 font-display text-[2.5rem] leading-[1.05] sm:text-5xl lg:text-[3.4rem]">
+          100% prírodné šťavy <em>zo slovenských sadov a polí</em>
+        </h1>
+        <p className="mt-6 max-w-md text-lg leading-relaxed text-white/75">
+          Lisované z čerstvého ovocia a zeleniny. Bez pridaného cukru, bez konzervantov, nie z koncentrátu.
+        </p>
+        <div className="mt-9 flex flex-wrap gap-3">
+          {ordering ? (
+            <Link href="#stavy" className="btn btn-light">
+              Objednať
+            </Link>
+          ) : loggedIn ? (
+            <Link href="/ucet" className="btn btn-light">
+              Môj účet
+            </Link>
+          ) : (
+            <>
+              <Link href="/registracia" className="btn btn-light">
+                Registrovať firmu
               </Link>
-            ) : loggedIn ? (
-              <Link href="/ucet" className="btn btn-light">
-                Môj účet
+              <Link href="/prihlasenie" className="btn btn-ghost text-white">
+                Prihlásiť sa
               </Link>
-            ) : (
-              <>
-                <Link href="/registracia" className="btn btn-light">
-                  Registrovať firmu
-                </Link>
-                <Link href="/prihlasenie" className="btn btn-ghost text-white">
-                  Prihlásiť sa
-                </Link>
-              </>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Mobil: fotka pod textom. Desktop: fotka na pozadí celej sekcie. */}
-      <div className="relative md:absolute md:inset-y-0 md:left-[28%] md:right-0">
-        <picture>
-          <source media="(min-width: 768px)" srcSet={desktop} />
-          <source media="(max-width: 767px)" srcSet={mobile} />
-          <img
-            {...rest}
-            alt=""
-            className="block aspect-[4/5] w-full object-cover object-[50%_80%] md:aspect-auto md:h-full md:object-center"
-          />
-        </picture>
-        <div className="absolute inset-0 bg-gradient-to-b from-night via-transparent to-transparent md:bg-gradient-to-r md:from-night md:via-night/40 md:via-35% md:to-transparent md:to-60%" />
+      {/* Celá fotka bez orezania – musí byť vidieť všetkých 9 štiav. */}
+      <div className="relative">
+        <Image
+          src="/img/hero.webp"
+          alt="Deväť štiav VITAPRO s ovocím a zeleninou"
+          width={2400}
+          height={1747}
+          priority
+          sizes="(min-width: 768px) 60vw, 100vw"
+          className="block h-auto w-full"
+        />
+        <div aria-hidden className="absolute inset-y-0 left-0 hidden w-[5%] bg-gradient-to-r from-night to-transparent md:block" />
       </div>
     </section>
   )

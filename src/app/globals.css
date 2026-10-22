@@ -52,6 +52,13 @@ html {
   scroll-padding-top: 5rem;
 }
 
+/* Všetky nadpisy v písme z etikiet. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
 body {
   background: var(--color-paper);
   color: var(--color-ink);
