@@ -2,6 +2,7 @@ export type ProductStatus = 'active' | 'unavailable' | 'archived'
 export type ProfileStatus = 'pending' | 'approved' | 'blocked'
 export type UserRole = 'customer' | 'admin'
 export type OrderStatus = 'new' | 'processing' | 'completed' | 'cancelled'
+export type Recurrence = 'weekly' | 'biweekly' | 'monthly'
 
 export type Product = {
   id: string
@@ -88,6 +89,10 @@ export type OrderRow = {
   internal_email_sent_at: string | null
   cancelled_at: string | null
   cancelled_via: 'email' | 'account' | 'admin' | null
+  /** Trvalá objednávka – dodávky plánuje ActiWhere. null = jednorazová. */
+  recurrence: Recurrence | null
+  replaces_order_id: string | null
+  standing_ended_at: string | null
   created_at: string
 }
 
@@ -143,4 +148,15 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   processing: 'Spracováva sa',
   completed: 'Vybavená',
   cancelled: 'Zrušená',
+}
+
+export const RECURRENCE_LABEL: Record<Recurrence, string> = {
+  weekly: 'každý týždeň',
+  biweekly: 'každé 2 týždne',
+  monthly: 'každý mesiac',
+}
+
+/** Aktívna trvalá objednávka = nezrušená a nenahradená/neukončená. */
+export function isActiveStanding(o: Pick<OrderRow, 'recurrence' | 'standing_ended_at' | 'status'>): boolean {
+  return o.recurrence !== null && o.standing_ended_at === null && o.status !== 'cancelled'
 }

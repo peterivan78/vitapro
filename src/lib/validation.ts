@@ -72,6 +72,15 @@ export const orderSchema = z.object({
     .nullable()
     .or(z.literal('').transform(() => null)),
   note: z.string().trim().max(1000, 'Poznámka môže mať najviac 1000 znakov.'),
+  recurrence: z
+    .enum(['weekly', 'biweekly', 'monthly'])
+    .nullable()
+    .or(z.literal('').transform(() => null)),
+  replaces_order_id: z
+    .string()
+    .uuid()
+    .nullable()
+    .or(z.literal('').transform(() => null)),
   items: z
     .array(z.object({ product_id: z.string().min(1), quantity: z.number().int().min(1).max(9996) }))
     .min(1, 'Objednávka je prázdna.')

@@ -83,18 +83,33 @@ function itemsText(p: OrderPayload): string {
 // ---------------------------------------------------------------------------
 export type CancelLink = { url: string; deadline: string }
 
+/** Riadok o pravidelnej dodávke (prázdny pri jednorazovej objednávke). */
+function standingLine(p: OrderPayload): string {
+  if (!p.standing) return ''
+  const from = p.delivery.requested_date ? ` od ${formatDateSk(p.delivery.requested_date)}` : ''
+  const replaces = p.standing.replaces_order_number ? ` – nahrádza ${p.standing.replaces_order_number}` : ''
+  return `Pravidelná dodávka: ${p.standing.label}${from}${replaces}`
+}
+
+function dateLabel(p: OrderPayload): string {
+  return p.standing ? 'Prvá dodávka' : 'Požadovaný termín'
+}
+
 export function customerConfirmationEmail(p: OrderPayload, cancel?: CancelLink): EmailContent {
-  const subject = `Prijali sme vašu objednávku ${p.order_number} – VITAPRO`
+  const subject = p.standing
+    ? `${p.standing.replaces_order_number ? 'Zmena pravidelnej dodávky' : 'Pravidelná dodávka'} ${p.order_number} – VITAPRO`
+    : `Prijali sme vašu objednávku ${p.order_number} – VITAPRO`
   const delivery = addressLines(p.delivery.address)
   const html = layout(
     subject,
     `<p>Dobrý deň${p.customer.contact_name ? `, ${escapeHtml(p.customer.contact_name)}` : ''},</p>
 <p>ďakujeme, vašu objednávku <strong>${escapeHtml(p.order_number)}</strong> sme prijali.
 Obchodné oddelenie ju spracuje a ozve sa vám s termínom dodania.</p>
+${p.standing ? `<p style="margin:12px 0;padding:10px 14px;background:#f5f1ea;border-radius:4px"><strong>${escapeHtml(standingLine(p))}</strong><br><span style="font-size:13px;color:#6f6a63">Dodávky budú chodiť automaticky, nemusíte nič objednávať. Zmeniť alebo ukončiť ich môžete v Môj účet.</span></p>` : ''}
 ${itemsTableHtml(p)}
 <p style="margin:20px 0 4px;font-weight:bold">Dodacia adresa</p>
 <p style="margin:0">${delivery.map(escapeHtml).join('<br>')}</p>
-<p style="margin:16px 0 0"><strong>Požadovaný termín:</strong> ${formatDateSk(p.delivery.requested_date)}</p>
+<p style="margin:16px 0 0"><strong>${dateLabel(p)}:</strong> ${formatDateSk(p.delivery.requested_date)}</p>
 ${p.note ? `<p style="margin:8px 0 0"><strong>Poznámka:</strong> ${escapeHtml(p.note)}</p>` : ''}
 <p style="margin:24px 0 0;color:#6f6a63;font-size:13px">Ak potrebujete objednávku zmeniť, odpovedzte na tento email.</p>
 ${cancel ? cancelBlockHtml(cancel) : ''}`,
@@ -102,7 +117,7 @@ ${cancel ? cancelBlockHtml(cancel) : ''}`,
   const text = `Dobrý deň,
 
 ďakujeme, vašu objednávku ${p.order_number} sme prijali. Obchodné oddelenie ju spracuje a ozve sa vám s termínom dodania.
-
+${p.standing ? `\n${standingLine(p)}\nDodávky budú chodiť automaticky. Zmeniť alebo ukončiť ich môžete v Môj účet.\n` : ''}
 Položky:
 ${itemsText(p)}
 Spolu: ${p.totals.units} ks (${cratesLabel(p.totals.crates)})
@@ -110,7 +125,7 @@ Spolu: ${p.totals.units} ks (${cratesLabel(p.totals.crates)})
 Dodacia adresa:
 ${delivery.join('\n')}
 
-Požadovaný termín: ${formatDateSk(p.delivery.requested_date)}
+${dateLabel(p)}: ${formatDateSk(p.delivery.requested_date)}
 ${p.note ? `Poznámka: ${p.note}\n` : ''}
 Ak potrebujete objednávku zmeniť, odpovedzte na tento email.
 ${cancel ? `\nTúto objednávku ste nezadali vy? Zrušiť ju môžete do ${formatDateTimeSk(cancel.deadline)}:\n${cancel.url}\n` : ''}
@@ -122,7 +137,8 @@ AQUA PRO EUROPE, a.s.`
 // Interná objednávka (pre obchod + internú AI)
 // ---------------------------------------------------------------------------
 export function internalOrderSubject(p: OrderPayload): string {
-  return `[OBJEDNÁVKA] ${p.order_number} | ${oneLine(p.customer.company_name)} | IČO ${oneLine(p.customer.ico)} | ${p.totals.units} ks`
+  const tag = p.standing ? (p.standing.replaces_order_number ? '[ZMENA TRVALEJ OBJEDNÁVKY]' : '[TRVALÁ OBJEDNÁVKA]') : '[OBJEDNÁVKA]'
+  return `${tag} ${p.order_number} | ${oneLine(p.customer.company_name)} | IČO ${oneLine(p.customer.ico)} | ${p.totals.units} ks`
 }
 
 export function internalOrderEmail(p: OrderPayload): EmailContent {
@@ -143,6 +159,7 @@ export function internalOrderEmail(p: OrderPayload): EmailContent {
     subject,
     `<p style="font-size:18px;margin:0 0 4px"><strong>Nová objednávka ${escapeHtml(p.order_number)}</strong></p>
 <p style="margin:0;color:#6f6a63">${escapeHtml(formatDateTimeSk(p.created_at))}</p>
+${p.standing ? `<p style="margin:12px 0 0;padding:10px 14px;background:#fff4e0;border-radius:4px"><strong>TRVALÁ OBJEDNÁVKA – ${escapeHtml(standingLine(p).replace('Pravidelná dodávka: ', ''))}</strong><br><span style="font-size:13px">Naplánujte opakované dodávky v ActiWhere.${p.standing.replaces_order_number ? ` Pôvodnú trvalú objednávku ${escapeHtml(p.standing.replaces_order_number)} ukončite.` : ''}</span></p>` : ''}
 <table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:16px 0">
 ${customerRows
   .map(([k, v]) => `<tr><td style="padding:3px 16px 3px 0;color:#6f6a63">${k}</td><td style="padding:3px 0">${escapeHtml(v)}</td></tr>`)
@@ -152,13 +169,19 @@ ${itemsTableHtml(p)}
 ${p.packaging ? `<p style="margin:0;font-size:14px">Prepravky: ${escapeHtml(p.packaging.name)} <span style="color:#8a847b">[${escapeHtml(p.packaging.sku)}]</span> – ${p.packaging.quantity} ks</p>` : ''}
 <p style="margin:16px 0 4px;font-weight:bold">Dodacia adresa${p.delivery.address.label ? ` (${escapeHtml(p.delivery.address.label)})` : ''}</p>
 <p style="margin:0">${addressLines(p.delivery.address).map(escapeHtml).join('<br>')}</p>
-<p style="margin:16px 0 0"><strong>Požadovaný termín:</strong> ${formatDateSk(p.delivery.requested_date)}</p>
+<p style="margin:16px 0 0"><strong>${dateLabel(p)}:</strong> ${formatDateSk(p.delivery.requested_date)}</p>
 <p style="margin:8px 0 0"><strong>Poznámka:</strong> ${p.note ? escapeHtml(p.note) : '—'}</p>
 <p style="margin:24px 0 4px;color:#6f6a63;font-size:12px">Strojovo čitateľná verzia (rovnaká ako príloha objednavka-${escapeHtml(p.order_number)}.json):</p>
 <pre style="white-space:pre-wrap;font-size:11px;background:#f5f1ea;padding:12px;border-radius:4px">${escapeHtml(json)}</pre>`,
   )
   const text = `NOVÁ OBJEDNÁVKA ${p.order_number}
-Vytvorená: ${formatDateTimeSk(p.created_at)}
+Vytvorená: ${formatDateTimeSk(p.created_at)}${
+    p.standing
+      ? `\n\nTRVALÁ OBJEDNÁVKA – ${standingLine(p).replace('Pravidelná dodávka: ', '')}\nNaplánujte opakované dodávky v ActiWhere.${
+          p.standing.replaces_order_number ? ` Pôvodnú trvalú objednávku ${p.standing.replaces_order_number} ukončite.` : ''
+        }`
+      : ''
+  }
 
 ODBERATEĽ
 ${customerRows.map(([k, v]) => `${k}: ${v}`).join('\n')}
@@ -172,7 +195,7 @@ SPOLU: ${p.totals.units} ks (${cratesLabel(p.totals.crates)} po ${p.totals.crate
 DODACIA ADRESA${p.delivery.address.label ? ` (${p.delivery.address.label})` : ''}
 ${addressLines(p.delivery.address).join('\n')}
 
-Požadovaný termín: ${formatDateSk(p.delivery.requested_date)}
+${dateLabel(p)}: ${formatDateSk(p.delivery.requested_date)}
 Poznámka: ${p.note ?? '—'}
 
 ${JSON_BEGIN}
@@ -238,6 +261,8 @@ export const CANCEL_SCHEMA_VERSION = 'vitapro.order-cancellation.v1'
 
 export type CancellationInfo = {
   order_number: string
+  /** Ak zrušená objednávka bola zmenou trvalej objednávky, pôvodná opäť platí. */
+  restored_order_number?: string | null
   company_name: string
   ico: string
   email: string
@@ -259,13 +284,16 @@ export function internalCancellationEmail(c: CancellationInfo): EmailContent {
     `<p style="font-size:18px;margin:0 0 4px;color:#b3261e"><strong>Objednávka ${escapeHtml(c.order_number)} bola zrušená</strong></p>
 <p>Zákazník ${escapeHtml(c.company_name)} (IČO ${escapeHtml(c.ico)}) ju zrušil ${VIA_LABEL[c.via]} – ${escapeHtml(formatDateTimeSk(c.cancelled_at))}.</p>
 <p><strong>Objednávku nespracúvajte.</strong> Ak už bola naimportovaná, zrušte ju aj v internom systéme.</p>
+${c.restored_order_number ? `<p><strong>Pôvodná trvalá objednávka ${escapeHtml(c.restored_order_number)} ostáva v platnosti.</strong></p>` : ''}
 <pre style="white-space:pre-wrap;font-size:11px;background:#f5f1ea;padding:12px;border-radius:4px">${escapeHtml(json)}</pre>`,
   )
   const text = `ZRUŠENÁ OBJEDNÁVKA ${c.order_number}
 Zákazník: ${c.company_name} (IČO ${c.ico})
 Zrušená ${VIA_LABEL[c.via]}: ${formatDateTimeSk(c.cancelled_at)}
 
-Objednávku nespracúvajte. Ak už bola naimportovaná, zrušte ju aj v internom systéme.
+Objednávku nespracúvajte. Ak už bola naimportovaná, zrušte ju aj v internom systéme.${
+    c.restored_order_number ? `\nPôvodná trvalá objednávka ${c.restored_order_number} ostáva v platnosti.` : ''
+  }
 
 ${JSON_BEGIN}
 ${json}
@@ -287,6 +315,59 @@ export function customerCancellationEmail(c: CancellationInfo): EmailContent {
 objednávka ${c.order_number} bola zrušená a nebude spracovaná.
 
 Ak ste ju nezadali vy, odporúčame zmeniť si heslo a kontaktovať obchodné oddelenie.
+
+AQUA PRO EUROPE, a.s.`
+  return { subject, html, text }
+}
+
+// ---------------------------------------------------------------------------
+// Ukončenie trvalej objednávky
+// ---------------------------------------------------------------------------
+export const STANDING_END_SCHEMA_VERSION = 'vitapro.standing-order-end.v1'
+
+export type StandingEndInfo = {
+  order_number: string
+  company_name: string
+  ico: string
+  email: string
+  ended_at: string
+  via: 'account' | 'admin'
+}
+
+export function internalStandingEndEmail(c: StandingEndInfo): EmailContent {
+  const subject = `[UKONČENIE TRVALEJ OBJEDNÁVKY] ${c.order_number} | ${oneLine(c.company_name)} | IČO ${oneLine(c.ico)}`
+  const json = JSON.stringify({ schema: STANDING_END_SCHEMA_VERSION, ...c }, null, 2)
+  const who = c.via === 'account' ? 'zákazník v svojom účte' : 'administrácia'
+  const html = layout(
+    subject,
+    `<p style="font-size:18px;margin:0 0 4px"><strong>Trvalá objednávka ${escapeHtml(c.order_number)} je ukončená</strong></p>
+<p>${escapeHtml(c.company_name)} (IČO ${escapeHtml(c.ico)}) – ukončil ${who}, ${escapeHtml(formatDateTimeSk(c.ended_at))}.</p>
+<p><strong>Zastavte opakované dodávky v ActiWhere</strong> a pri poslednej návšteve vyzdvihnite prázdne fľaše a prepravky.</p>
+<pre style="white-space:pre-wrap;font-size:11px;background:#f5f1ea;padding:12px;border-radius:4px">${escapeHtml(json)}</pre>`,
+  )
+  const text = `UKONČENIE TRVALEJ OBJEDNÁVKY ${c.order_number}
+Zákazník: ${c.company_name} (IČO ${c.ico})
+Ukončil ${who}: ${formatDateTimeSk(c.ended_at)}
+
+Zastavte opakované dodávky v ActiWhere a pri poslednej návšteve vyzdvihnite prázdne fľaše a prepravky.
+
+${JSON_BEGIN}
+${json}
+${JSON_END}
+`
+  return { subject, html, text }
+}
+
+export function customerStandingEndEmail(c: StandingEndInfo): EmailContent {
+  const subject = `Pravidelná dodávka ${c.order_number} je ukončená – VITAPRO`
+  const html = layout(
+    subject,
+    `<p>Dobrý deň,</p>
+<p>pravidelnú dodávku <strong>${escapeHtml(c.order_number)}</strong> sme ukončili. Obchodné oddelenie vás kontaktuje ohľadom poslednej dodávky a vyzdvihnutia prázdnych fliaš.</p>`,
+  )
+  const text = `Dobrý deň,
+
+pravidelnú dodávku ${c.order_number} sme ukončili. Obchodné oddelenie vás kontaktuje ohľadom poslednej dodávky a vyzdvihnutia prázdnych fliaš.
 
 AQUA PRO EUROPE, a.s.`
   return { subject, html, text }

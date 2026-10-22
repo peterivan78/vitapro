@@ -9,12 +9,14 @@ import { buildOrderPayload, type OrderPayload } from '@/lib/orders/orderPayload'
 import { getSettings } from '@/lib/settings'
 import { siteUrl } from '@/lib/site'
 import { createServiceClient } from '@/lib/supabase/server'
-import type { Address, OrderCustomer, OrderDeliveryAddress, OrderItemRow, OrderRow, Product, Profile } from '@/lib/types'
+import type { Address, OrderCustomer, OrderDeliveryAddress, OrderItemRow, OrderRow, Product, Profile, Recurrence } from '@/lib/types'
 
 export type PlaceOrderInput = {
   addressId: string
   requestedDate: string | null
   note: string
+  recurrence: Recurrence | null
+  replacesOrderId: string | null
   items: { product_id: string; quantity: number }[]
 }
 
@@ -105,6 +107,21 @@ export async function placeOrder(profile: Profile, input: PlaceOrderInput) {
     .sort((a, b) => a.product.sort_order - b.product.sort_order)
     .map(({ product, quantity }) => ({ product_id: product.id, sku: product.sku, name: product.erp_name || product.name, quantity }))
 
+  if (input.replacesOrderId && !input.recurrence) {
+    throw new OrderError('Pri zmene pravidelnej dodávky zvoľte interval.')
+  }
+  let replacesOrderNumber: string | null = null
+  if (input.replacesOrderId) {
+    const { data: replaced } = await db
+      .from('orders')
+      .select('order_number')
+      .eq('id', input.replacesOrderId)
+      .eq('profile_id', profile.id)
+      .maybeSingle<{ order_number: string }>()
+    if (!replaced) throw new OrderError('Pôvodná pravidelná dodávka sa nenašla.')
+    replacesOrderNumber = replaced.order_number
+  }
+
   const { data: created, error } = await db
     .rpc('create_order', {
       p_profile_id: profile.id,
@@ -114,8 +131,13 @@ export async function placeOrder(profile: Profile, input: PlaceOrderInput) {
       p_note: input.note,
       p_crate_size: settings.crate_size,
       p_items: items,
+      p_recurrence: input.recurrence,
+      p_replaces_order_id: input.replacesOrderId,
     })
     .single<{ order_id: string; order_number: string; created_at: string }>()
+  if (error?.message?.includes('už neplatí')) {
+    throw new OrderError('Pôvodná pravidelná dodávka už bola zmenená alebo ukončená. Obnovte stránku Môj účet.')
+  }
   if (error || !created) {
     console.error('[order] create_order failed', error)
     throw new OrderError('Objednávku sa nepodarilo uložiť. Skúste to znova.')
@@ -131,6 +153,8 @@ export async function placeOrder(profile: Profile, input: PlaceOrderInput) {
     crateSize: settings.crate_size,
     items,
     crate: { sku: settings.crate_sku, name: settings.crate_erp_name },
+    recurrence: input.recurrence,
+    replacesOrderNumber,
   })
 
   // Objednávka je uložená – zlyhanie emailu ju nesmie zrušiť. Stav odoslania
@@ -188,6 +212,9 @@ export async function resendOrderEmails(orderId: string, which: 'internal' | 'cu
   const settings = await getSettings()
   const { data: order } = await db.from('orders').select('*, order_items(*)').eq('id', orderId).single<OrderRow & { order_items: OrderItemRow[] }>()
   if (!order) throw new OrderError('Objednávka neexistuje.')
+  const { data: replaced } = order.replaces_order_id
+    ? await db.from('orders').select('order_number').eq('id', order.replaces_order_id).maybeSingle<{ order_number: string }>()
+    : { data: null }
   const payload = buildOrderPayload({
     orderNumber: order.order_number,
     createdAt: new Date(order.created_at).toISOString(),
@@ -198,6 +225,8 @@ export async function resendOrderEmails(orderId: string, which: 'internal' | 'cu
     crateSize: order.crate_size,
     items: [...order.order_items].sort((a, b) => a.line_no - b.line_no),
     crate: { sku: settings.crate_sku, name: settings.crate_erp_name },
+    recurrence: order.recurrence,
+    replacesOrderNumber: replaced?.order_number ?? null,
   })
   return sendOrderEmails(orderId, payload, which)
 }

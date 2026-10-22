@@ -6,8 +6,8 @@ import { getVisibleProducts } from '@/lib/catalog/getProducts'
 import { tomorrowInBratislava } from '@/lib/dates'
 import { getSettings } from '@/lib/settings'
 import { createServiceClient } from '@/lib/supabase/server'
-import type { Address } from '@/lib/types'
-import { CheckoutForm } from './CheckoutForm'
+import type { Address, OrderRow } from '@/lib/types'
+import { CheckoutForm, type ActiveStanding } from './CheckoutForm'
 
 export const metadata: Metadata = { title: 'Objednávka', robots: { index: false } }
 
@@ -24,7 +24,7 @@ export default async function CheckoutPage() {
     )
   }
 
-  const [products, settings, { data: addresses }] = await Promise.all([
+  const [products, settings, { data: addresses }, { data: standing }] = await Promise.all([
     getVisibleProducts(),
     getSettings(),
     createServiceClient()
@@ -34,11 +34,24 @@ export default async function CheckoutPage() {
       .eq('archived', false)
       .order('is_default', { ascending: false })
       .order('created_at'),
+    createServiceClient()
+      .from('orders')
+      .select('*')
+      .eq('profile_id', viewer.userId)
+      .not('recurrence', 'is', null)
+      .is('standing_ended_at', null)
+      .neq('status', 'cancelled'),
   ])
+  const activeStanding: ActiveStanding[] = ((standing ?? []) as OrderRow[]).map((o) => ({
+    id: o.id,
+    orderNumber: o.order_number,
+    recurrence: o.recurrence!,
+    addressId: o.delivery_address.address_id,
+  }))
 
   return (
     <PageShell eyebrow="Objednávka" title="Dokončenie objednávky" width="wide">
-      <CheckoutForm products={products} addresses={(addresses ?? []) as Address[]} crateSize={settings.crate_size} minDate={tomorrowInBratislava()} />
+      <CheckoutForm products={products} addresses={(addresses ?? []) as Address[]} crateSize={settings.crate_size} minDate={tomorrowInBratislava()} activeStanding={activeStanding} />
     </PageShell>
   )
 }

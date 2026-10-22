@@ -2,29 +2,57 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useState } from 'react'
 import { useCart } from '@/components/cart/CartProvider'
 import { CrateFill } from '@/components/cart/CrateFill'
 import { FormError } from '@/components/form/Field'
 import { SubmitButton } from '@/components/form/SubmitButton'
 import { cratesLabel, currentCrateSlots, summarizeCrates, unitsLabel } from '@/lib/crates'
-import type { Address, Product } from '@/lib/types'
+import { readStandingChange, writeStandingChange } from '@/lib/standingChange'
+import { RECURRENCE_LABEL, type Address, type Product, type Recurrence } from '@/lib/types'
 import { submitOrderAction, type OrderFormState } from './actions'
+
+export type ActiveStanding = { id: string; orderNumber: string; recurrence: Recurrence; addressId: string }
 
 export function CheckoutForm({
   products,
   addresses,
   crateSize,
   minDate,
+  activeStanding,
 }: {
   products: Product[]
   addresses: Address[]
   crateSize: number
   minDate: string
+  activeStanding: ActiveStanding[]
 }) {
   const { cart, setQuantity, hydrated } = useCart()
   const [state, action] = useActionState<OrderFormState, FormData>(submitOrderAction, {})
   const [addressId, setAddressId] = useState(addresses.find((a) => a.is_default)?.id ?? addresses[0]?.id ?? '')
+  const [standing, setStanding] = useState(false)
+  const [recurrence, setRecurrence] = useState<Recurrence>('weekly')
+  const [replacing, setReplacing] = useState<ActiveStanding | null>(null)
+
+  // Úprava existujúcej pravidelnej dodávky (začatá v Môj účet).
+  useEffect(() => {
+    const change = readStandingChange()
+    const target = change && activeStanding.find((s) => s.id === change.orderId)
+    if (!target) {
+      if (change) writeStandingChange(null)
+      return
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReplacing(target)
+    setStanding(true)
+    setRecurrence(target.recurrence)
+    if (addresses.some((a) => a.id === target.addressId)) setAddressId(target.addressId)
+  }, [activeStanding, addresses])
+
+  const stopReplacing = () => {
+    writeStandingChange(null)
+    setReplacing(null)
+  }
 
   const lines = useMemo(
     () =>
@@ -60,6 +88,16 @@ export function CheckoutForm({
   return (
     <form action={action} className="grid gap-10 lg:grid-cols-[1.4fr_1fr]">
       <div className="space-y-10">
+        {replacing && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn/30 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+            <p>
+              Upravujete pravidelnú dodávku <strong>{replacing.orderNumber}</strong>. Po odoslaní ju nová objednávka nahradí.
+            </p>
+            <button type="button" onClick={stopReplacing} className="underline underline-offset-4">
+              Neupravovať, objednať zvlášť
+            </button>
+          </div>
+        )}
         <section aria-labelledby="h-items">
           <div className="flex items-baseline justify-between">
             <h2 id="h-items" className="font-display text-2xl">Položky</h2>
@@ -136,14 +174,60 @@ export function CheckoutForm({
           )}
         </section>
 
+        <section aria-labelledby="h-type">
+          <h2 id="h-type" className="font-display text-2xl">Typ dodávky</h2>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {[
+              [false, 'Jednorazová objednávka', 'Dovezieme raz, ďalšiu objednáte, keď budete potrebovať.'],
+              [true, 'Pravidelná dodávka', 'Nastavíme raz a šťavy chodia samy. Prázdne fľaše a prepravky zoberieme.'],
+            ].map(([value, title, text]) => (
+              <label
+                key={String(value)}
+                className={`rounded-xl border bg-white p-4 text-sm transition ${
+                  standing === value ? 'border-ink ring-1 ring-ink' : 'border-line hover:border-ink/40'
+                } ${replacing && !value ? 'pointer-events-none opacity-40' : 'cursor-pointer'}`}
+              >
+                <input
+                  type="radio"
+                  name="order_type"
+                  checked={standing === value}
+                  disabled={Boolean(replacing) && !value}
+                  onChange={() => setStanding(value as boolean)}
+                  className="sr-only"
+                />
+                <span className="block font-medium">{title as string}</span>
+                <span className="mt-1 block leading-relaxed text-ink-soft">{text as string}</span>
+              </label>
+            ))}
+          </div>
+          {standing && (
+            <div className="mt-5 max-w-xs">
+              <label htmlFor="recurrence" className="mb-1.5 block text-sm font-medium">
+                Ako často
+              </label>
+              <select id="recurrence" value={recurrence} onChange={(e) => setRecurrence(e.target.value as Recurrence)} className="field">
+                {(Object.keys(RECURRENCE_LABEL) as Recurrence[]).map((r) => (
+                  <option key={r} value={r}>
+                    {RECURRENCE_LABEL[r][0].toUpperCase() + RECURRENCE_LABEL[r].slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <input type="hidden" name="recurrence" value={standing ? recurrence : ''} />
+          <input type="hidden" name="replaces_order_id" value={standing && replacing ? replacing.id : ''} />
+        </section>
+
         <section aria-labelledby="h-details" className="grid gap-5 sm:grid-cols-2">
           <h2 id="h-details" className="sr-only">Doplňujúce údaje</h2>
           <div>
             <label htmlFor="requested_date" className="mb-1.5 block text-sm font-medium">
-              Požadovaný termín dodania
+              {standing ? 'Prvá dodávka od' : 'Požadovaný termín dodania'}
             </label>
             <input id="requested_date" name="requested_date" type="date" min={minDate} className="field" />
-            <p className="mt-1.5 text-xs text-ink-mute">Nepovinné. Termín potvrdí obchodné oddelenie.</p>
+            <p className="mt-1.5 text-xs text-ink-mute">
+              {standing ? 'Nepovinné. Presné dni dodávok dohodne obchodné oddelenie podľa trasy.' : 'Nepovinné. Termín potvrdí obchodné oddelenie.'}
+            </p>
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="note" className="mb-1.5 block text-sm font-medium">
@@ -182,7 +266,7 @@ export function CheckoutForm({
               pendingText="Odosielam objednávku…"
               disabled={!summary.isValid || blocked || !addressId}
             >
-              Odoslať objednávku
+              {replacing ? 'Odoslať zmenu' : standing ? 'Objednať pravidelnú dodávku' : 'Odoslať objednávku'}
             </SubmitButton>
             <p className="text-xs leading-relaxed text-ink-mute">
               Odoslaním potvrdzujete objednávku podľa{' '}

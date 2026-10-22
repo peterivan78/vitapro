@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { AccessError, requireAdmin } from '@/lib/auth'
 import { accountApprovedEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/send'
+import { endStandingOrder } from '@/lib/orders/endStanding'
 import { resendOrderEmails } from '@/lib/orders/placeOrder'
 import { siteUrl } from '@/lib/site'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -37,6 +38,14 @@ export async function setOrderStatusAction(formData: FormData) {
         : { status },
     )
     .eq('id', id)
+  revalidatePath('/admin')
+  revalidatePath(`/admin/objednavky/${id}`)
+}
+
+export async function endStandingAdminAction(formData: FormData) {
+  await requireAdmin()
+  const id = String(formData.get('id'))
+  await endStandingOrder({ id }, 'admin')
   revalidatePath('/admin')
   revalidatePath(`/admin/objednavky/${id}`)
 }

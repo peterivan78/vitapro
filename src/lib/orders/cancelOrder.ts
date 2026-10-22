@@ -52,8 +52,22 @@ export async function cancelOrder(
     return { ok: false, reason: 'in_progress' }
   }
 
+  // Zrušená bola zmena trvalej objednávky → pôvodná opäť platí.
+  let restored: string | null = null
+  if (cancelled.replaces_order_id) {
+    const { data } = await db
+      .from('orders')
+      .update({ standing_ended_at: null })
+      .eq('id', cancelled.replaces_order_id)
+      .neq('status', 'cancelled')
+      .select('order_number')
+      .maybeSingle<{ order_number: string }>()
+    restored = data?.order_number ?? null
+  }
+
   const info: CancellationInfo = {
     order_number: cancelled.order_number,
+    restored_order_number: restored,
     company_name: cancelled.customer.company_name,
     ico: cancelled.customer.ico,
     email: cancelled.customer.email,

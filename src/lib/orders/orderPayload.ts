@@ -1,4 +1,4 @@
-import type { OrderCustomer, OrderDeliveryAddress } from '@/lib/types'
+import { RECURRENCE_LABEL, type OrderCustomer, type OrderDeliveryAddress, type Recurrence } from '@/lib/types'
 
 // Strojovo čitateľná objednávka pre internú AI / import do interného systému.
 // Štruktúru NEMENIŤ bez zvýšenia verzie v poli `schema` – interná AI sa na
@@ -18,6 +18,12 @@ export type OrderPayload = {
   totals: { units: number; crates: number; crate_size: number }
   /** Prepravky ako samostatná položka interného systému (nepovinné, pridané vo v1). */
   packaging?: { sku: string; name: string; quantity: number; unit: 'ks' }
+  /**
+   * Trvalá objednávka (nepovinné, pridané vo v1): dodávky plánuje interný
+   * systém v danom intervale od delivery.requested_date. Ak replaces_order_number
+   * nie je null, táto objednávka NAHRÁDZA uvedenú trvalú objednávku.
+   */
+  standing?: { interval: Recurrence; label: string; replaces_order_number: string | null }
   note: string | null
 }
 
@@ -31,6 +37,8 @@ export type OrderPayloadInput = {
   crateSize: number
   items: { sku: string; name: string; quantity: number }[]
   crate?: { sku: string; name: string }
+  recurrence?: Recurrence | null
+  replacesOrderNumber?: string | null
 }
 
 export function buildOrderPayload(input: OrderPayloadInput): OrderPayload {
@@ -45,6 +53,15 @@ export function buildOrderPayload(input: OrderPayloadInput): OrderPayload {
     totals: { units, crates: Math.floor(units / input.crateSize), crate_size: input.crateSize },
     ...(input.crate?.sku
       ? { packaging: { sku: input.crate.sku, name: input.crate.name, quantity: Math.floor(units / input.crateSize), unit: 'ks' as const } }
+      : {}),
+    ...(input.recurrence
+      ? {
+          standing: {
+            interval: input.recurrence,
+            label: RECURRENCE_LABEL[input.recurrence],
+            replaces_order_number: input.replacesOrderNumber ?? null,
+          },
+        }
       : {}),
     note: input.note.trim() ? input.note.trim() : null,
   }

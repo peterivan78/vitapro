@@ -7,6 +7,7 @@ import {
   formatDateSk,
   internalCancellationEmail,
   internalOrderEmail,
+  internalStandingEndEmail,
 } from './templates'
 
 const payload = buildOrderPayload({
@@ -114,5 +115,53 @@ describe('cancellation', () => {
     expect(email.subject).toBe('[ZRUŠENÁ] OBJ-2026-00042 | Bistro s.r.o. | IČO 12345678')
     const json = email.text.slice(email.text.indexOf(JSON_BEGIN) + JSON_BEGIN.length, email.text.indexOf(JSON_END))
     expect(JSON.parse(json)).toMatchObject({ schema: 'vitapro.order-cancellation.v1', order_number: 'OBJ-2026-00042', via: 'email' })
+  })
+})
+
+describe('standing orders', () => {
+  const base = {
+    orderNumber: 'OBJ-2026-00050',
+    createdAt: '2026-10-22T08:30:00.000Z',
+    customer: payload.customer,
+    delivery: payload.delivery.address,
+    requestedDate: '2026-11-02',
+    note: '',
+    crateSize: 12,
+    items: [{ sku: '80000219', name: 'VITAPRO Cvikla 0,33 l', quantity: 24 }],
+  }
+
+  it('marks a new standing order for planning in ActiWhere', () => {
+    const p = buildOrderPayload({ ...base, recurrence: 'weekly' })
+    expect(p.standing).toEqual({ interval: 'weekly', label: 'každý týždeň', replaces_order_number: null })
+    const email = internalOrderEmail(p)
+    expect(email.subject.startsWith('[TRVALÁ OBJEDNÁVKA] OBJ-2026-00050')).toBe(true)
+    expect(email.text).toContain('TRVALÁ OBJEDNÁVKA – každý týždeň od 2. 11. 2026')
+    expect(email.text).toContain('Prvá dodávka: 2. 11. 2026')
+  })
+
+  it('tells sales which standing order a change replaces', () => {
+    const p = buildOrderPayload({ ...base, recurrence: 'monthly', replacesOrderNumber: 'OBJ-2026-00042' })
+    const email = internalOrderEmail(p)
+    expect(email.subject.startsWith('[ZMENA TRVALEJ OBJEDNÁVKY]')).toBe(true)
+    expect(email.text).toContain('Pôvodnú trvalú objednávku OBJ-2026-00042 ukončite.')
+    expect(customerConfirmationEmail(p).subject).toBe('Zmena pravidelnej dodávky OBJ-2026-00050 – VITAPRO')
+  })
+
+  it('keeps one-time orders unchanged', () => {
+    expect(payload.standing).toBeUndefined()
+    expect(internalOrderEmail(payload).subject.startsWith('[OBJEDNÁVKA]')).toBe(true)
+  })
+
+  it('announces the end of a standing order', () => {
+    const email = internalStandingEndEmail({
+      order_number: 'OBJ-2026-00050',
+      company_name: 'Bistro s.r.o.',
+      ico: '12345678',
+      email: 'jana@example.sk',
+      ended_at: '2026-10-22T09:00:00.000Z',
+      via: 'account',
+    })
+    expect(email.subject).toBe('[UKONČENIE TRVALEJ OBJEDNÁVKY] OBJ-2026-00050 | Bistro s.r.o. | IČO 12345678')
+    expect(email.text).toContain('Zastavte opakované dodávky v ActiWhere')
   })
 })

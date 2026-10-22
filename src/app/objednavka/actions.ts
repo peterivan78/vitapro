@@ -21,6 +21,8 @@ export async function submitOrderAction(_prev: OrderFormState, formData: FormDat
       address_id: formData.get('address_id'),
       requested_date: formData.get('requested_date') ?? '',
       note: formData.get('note') ?? '',
+      recurrence: formData.get('recurrence') ?? '',
+      replaces_order_id: formData.get('replaces_order_id') ?? '',
       items,
     })
     if (!parsed.success) return { error: parsed.error.issues[0].message }
@@ -29,6 +31,8 @@ export async function submitOrderAction(_prev: OrderFormState, formData: FormDat
       addressId: parsed.data.address_id,
       requestedDate: parsed.data.requested_date,
       note: parsed.data.note,
+      recurrence: parsed.data.recurrence,
+      replacesOrderId: parsed.data.replaces_order_id,
       items: parsed.data.items,
     })
     orderNumber = result.orderNumber

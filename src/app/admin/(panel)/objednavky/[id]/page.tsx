@@ -1,13 +1,13 @@
 import { requireAdminPage } from '@/lib/auth'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { setOrderStatusAction } from '@/app/admin/actions'
+import { endStandingAdminAction, setOrderStatusAction } from '@/app/admin/actions'
 import { AdminTitle } from '@/components/admin/ui'
 import { formatDateSk, formatDateTimeSk } from '@/lib/email/templates'
 import { buildOrderPayload } from '@/lib/orders/orderPayload'
 import { getSettings } from '@/lib/settings'
 import { createServiceClient } from '@/lib/supabase/server'
-import { ORDER_STATUS_LABEL, type OrderItemRow, type OrderRow, type OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_LABEL, RECURRENCE_LABEL, isActiveStanding, type OrderItemRow, type OrderRow, type OrderStatus } from '@/lib/types'
 import { ResendEmails } from './ResendEmails'
 
 export const metadata = { title: 'Detail objednávky' }
@@ -24,6 +24,13 @@ export default async function AdminOrderDetailPage({ params }: PageProps<'/admin
   if (!order) notFound()
 
   const settings = await getSettings()
+  const db = createServiceClient()
+  const [{ data: replaced }, { data: replacedBy }] = await Promise.all([
+    order.replaces_order_id
+      ? db.from('orders').select('id, order_number').eq('id', order.replaces_order_id).maybeSingle<{ id: string; order_number: string }>()
+      : Promise.resolve({ data: null }),
+    db.from('orders').select('id, order_number').eq('replaces_order_id', order.id).neq('status', 'cancelled').maybeSingle<{ id: string; order_number: string }>(),
+  ])
   const items = [...order.order_items].sort((a, b) => a.line_no - b.line_no)
   const c = order.customer
   const d = order.delivery_address
@@ -38,6 +45,8 @@ export default async function AdminOrderDetailPage({ params }: PageProps<'/admin
       crateSize: order.crate_size,
       items,
       crate: { sku: settings.crate_sku, name: settings.crate_erp_name },
+      recurrence: order.recurrence,
+      replacesOrderNumber: replaced?.order_number ?? null,
     }),
     null,
     2,
@@ -65,6 +74,42 @@ export default async function AdminOrderDetailPage({ params }: PageProps<'/admin
         }
       />
       <p className="-mt-6 mb-8 text-sm text-ink-mute">Vytvorená {formatDateTimeSk(order.created_at)}</p>
+      {order.recurrence && (
+        <div className="-mt-4 mb-8 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand/10 px-4 py-3 text-sm text-[#00679a]">
+          <p>
+            <strong>Trvalá objednávka – {RECURRENCE_LABEL[order.recurrence]}.</strong> Dodávky plánuje ActiWhere.
+            {replaced && (
+              <>
+                {' '}Nahrádza{' '}
+                <Link href={`/admin/objednavky/${replaced.id}`} className="underline">
+                  {replaced.order_number}
+                </Link>
+                .
+              </>
+            )}
+            {order.standing_ended_at && order.status !== 'cancelled' && (
+              <>
+                {' '}Ukončená {formatDateTimeSk(order.standing_ended_at)}
+                {replacedBy && (
+                  <>
+                    {' '}– nahradila ju{' '}
+                    <Link href={`/admin/objednavky/${replacedBy.id}`} className="underline">
+                      {replacedBy.order_number}
+                    </Link>
+                  </>
+                )}
+                .
+              </>
+            )}
+          </p>
+          {isActiveStanding(order) && (
+            <form action={endStandingAdminAction}>
+              <input type="hidden" name="id" value={order.id} />
+              <button className="btn btn-ghost !py-1.5 text-sm">Ukončiť trvalú objednávku</button>
+            </form>
+          )}
+        </div>
+      )}
       {order.cancelled_at && (
         <p className="-mt-4 mb-8 rounded-lg bg-danger/5 px-4 py-3 text-sm text-danger">
           Zrušená {formatDateTimeSk(order.cancelled_at)}

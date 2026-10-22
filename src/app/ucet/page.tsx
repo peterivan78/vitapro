@@ -5,9 +5,10 @@ import { requireViewer } from '@/lib/auth'
 import { cratesLabel } from '@/lib/crates'
 import { formatDateSk, formatDateTimeSk } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/server'
-import { ORDER_STATUS_LABEL, PROFILE_STATUS_LABEL, type Address, type OrderItemRow, type OrderRow } from '@/lib/types'
+import { ORDER_STATUS_LABEL, RECURRENCE_LABEL, isActiveStanding, PROFILE_STATUS_LABEL, type Address, type OrderItemRow, type OrderRow } from '@/lib/types'
 import { AddressBook } from './AddressBook'
-import { cancelOwnOrderAction } from './actions'
+import { cancelOwnOrderAction, endOwnStandingAction } from './actions'
+import { StandingChangeButton } from './StandingChangeButton'
 import { isWithinCancelWindow } from '@/lib/orders/cancelWindow'
 import { getSettings } from '@/lib/settings'
 import { ProfileForm } from './ProfileForm'
@@ -56,6 +57,53 @@ export default async function AccountPage({ searchParams }: PageProps<'/ucet'>) 
           )}
         </div>
 
+        {(() => {
+          const standing = ((orders ?? []) as (OrderRow & { order_items: OrderItemRow[] })[]).filter(isActiveStanding)
+          if (standing.length === 0) return null
+          return (
+            <section className="mt-14" aria-labelledby="h-standing">
+              <h2 id="h-standing" className="font-display text-2xl">Pravidelné dodávky</h2>
+              <p className="mt-2 text-sm text-ink-soft">Chodia automaticky, prázdne fľaše a prepravky zoberieme pri ďalšej dodávke.</p>
+              <ul className="mt-6 grid gap-4 md:grid-cols-2">
+                {standing.map((o) => (
+                  <li key={o.id} className="flex flex-col rounded-xl border border-ink/20 bg-white p-5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="font-display text-xl">{RECURRENCE_LABEL[o.recurrence!][0].toUpperCase() + RECURRENCE_LABEL[o.recurrence!].slice(1)}</p>
+                      <span className="text-xs text-ink-mute">{o.order_number}</span>
+                    </div>
+                    <ul className="mt-3 space-y-1 text-sm">
+                      {[...o.order_items]
+                        .sort((a, b) => a.line_no - b.line_no)
+                        .map((i) => (
+                          <li key={i.id} className="flex justify-between gap-4">
+                            <span>{i.name}</span>
+                            <span className="tabular-nums">{i.quantity} ks</span>
+                          </li>
+                        ))}
+                    </ul>
+                    <p className="mt-3 text-sm text-ink-soft">
+                      {o.total_units} ks · {cratesLabel(o.crates)} · {o.delivery_address.street}, {o.delivery_address.city}
+                    </p>
+                    {o.status === 'new' && <p className="mt-1 text-xs text-warn">Čaká na spracovanie obchodným oddelením.</p>}
+                    <div className="mt-auto flex flex-wrap gap-3 pt-5">
+                      <StandingChangeButton orderId={o.id} orderNumber={o.order_number} items={o.order_items} />
+                      <form action={endOwnStandingAction}>
+                        <input type="hidden" name="id" value={o.id} />
+                        <ConfirmButton
+                          message={`Ukončiť pravidelnú dodávku ${o.order_number}? Obchodné oddelenie zastaví ďalšie dodávky.`}
+                          className="btn btn-ghost !py-2 text-sm text-danger"
+                        >
+                          Ukončiť
+                        </ConfirmButton>
+                      </form>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )
+        })()}
+
         <section className="mt-14" aria-labelledby="h-orders">
           <h2 id="h-orders" className="font-display text-2xl">Objednávky</h2>
           {(orders ?? []).length === 0 ? (
@@ -71,7 +119,15 @@ export default async function AccountPage({ searchParams }: PageProps<'/ucet'>) 
                       <span className="text-sm">
                         {o.total_units} ks · {cratesLabel(o.crates)}
                       </span>
-                      <span className="rounded-full bg-paper-deep px-2.5 py-0.5 text-xs">{ORDER_STATUS_LABEL[o.status]}</span>
+                      <span className="flex gap-2">
+                        {o.recurrence && (
+                          <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs text-[#00679a]">
+                            {o.replaces_order_id ? 'zmena pravidelnej' : 'pravidelná'}
+                            {o.standing_ended_at && o.status !== 'cancelled' && ' · ukončená'}
+                          </span>
+                        )}
+                        <span className="rounded-full bg-paper-deep px-2.5 py-0.5 text-xs">{ORDER_STATUS_LABEL[o.status]}</span>
+                      </span>
                     </summary>
                     <div className="mt-4 grid gap-6 text-sm sm:grid-cols-2">
                       <ul className="space-y-1">

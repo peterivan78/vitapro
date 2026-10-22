@@ -5,7 +5,7 @@ import { formatDateSk, formatDateTimeSk } from '@/lib/email/templates'
 import { cancelDeadline, isWithinCancelWindow } from '@/lib/orders/cancelWindow'
 import { getSettings } from '@/lib/settings'
 import { createServiceClient } from '@/lib/supabase/server'
-import { ORDER_STATUS_LABEL, type OrderRow, type OrderStatus } from '@/lib/types'
+import { ORDER_STATUS_LABEL, RECURRENCE_LABEL, type OrderRow, type OrderStatus } from '@/lib/types'
 
 export const metadata = { title: 'Objednávky' }
 
@@ -90,6 +90,12 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<'/admi
                   <td className="px-4 py-3 text-ink-soft">{formatDateSk(o.requested_delivery_date)}</td>
                   <td className="px-4 py-3">
                     <Badge tone={TONE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</Badge>
+                    {o.recurrence && (
+                      <span className="mt-1 block text-xs text-[#00679a]">
+                        {o.replaces_order_id ? 'zmena trvalej' : 'trvalá'} · {RECURRENCE_LABEL[o.recurrence]}
+                        {o.standing_ended_at && o.status !== 'cancelled' && ' · ukončená'}
+                      </span>
+                    )}
                     {o.status === 'new' && isWithinCancelWindow(o.created_at, settings.cancel_window_minutes) && (
                       <span className="mt-1 block text-xs text-warn">
                         zákazník môže zrušiť do{' '}
