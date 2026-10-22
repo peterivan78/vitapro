@@ -11,6 +11,7 @@ Všetky podklady nahrávaj do priečinka [`podklady/`](podklady/) cez GitHub:
 |---|---|
 | `podklady/logo/` | Logá (ideálne SVG, alebo PNG s priehľadným pozadím) |
 | `podklady/produkty/` | Fotky jednotlivých štiav + zoznam produktov |
+| `podklady/ilustracie/` | Rytiny ovocia z etikiet + pečiatky (zdrojové súbory od grafika) |
 | `podklady/fotky/` | Atmosférické / úvodné fotky (ovocie, výroba, ľudia…) |
 | `podklady/texty/` | Texty na web (úvod, o nás, kontakt obchodného oddelenia) |
 | `podklady/pravne/` | VOP, GDPR, cookies |
