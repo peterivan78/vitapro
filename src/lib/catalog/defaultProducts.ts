@@ -1,0 +1,136 @@
+import type { Product } from '@/lib/types'
+
+// Údaje prepísané z tlačových podkladov etikiet (10/2026).
+// SKU sú DOČASNÉ – nahradiť internými kódmi AQUA PRO v admine.
+// Tento zoznam slúži ako zdroj pre supabase/seed.sql a ako náhradný katalóg,
+// keď ešte nie je pripojená databáza (lokálny náhľad dizajnu).
+type DefaultProduct = Omit<Product, 'id' | 'status' | 'photo_url'>
+
+export const DEFAULT_PRODUCTS: DefaultProduct[] = [
+  {
+    slug: 'jablko-ribezla',
+    sku: 'VP-JABRIB-033',
+    name: 'Jablčko a ríbezľa',
+    subtitle: '100% prírodná šťava z jablka a čiernej ríbezle',
+    description: 'Sladké slovenské jablká a výrazná čierna ríbezľa.',
+    composition: '100% šťava z čerstvých jabĺk (80 %) a čiernych ríbezlí (20 %).',
+    nutrition:
+      'Energetická hodnota 296 kJ / 70 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0,1 g, sacharidy 16 g, z toho cukry 12 g, bielkoviny 0,5 g, soľ 0,07 g.',
+    volume: '0,33 l',
+    accent_color: '#109547',
+    illustration_url: '/ilustracie/jablko-ribezla.webp',
+    sort_order: 10,
+  },
+  {
+    slug: 'cvikla',
+    sku: 'VP-CVIKLA-033',
+    name: 'Cvikla',
+    subtitle: '100% prírodná šťava z cvikly',
+    description: 'Zemitá, jemne sladká šťava z čerstvej cvikly.',
+    composition: '100% šťava z cvikly, kyselina citrónová.',
+    nutrition:
+      'Energetická hodnota 172 kJ / 41 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0,1 g, sacharidy 9,9 g, z toho cukry 9,9 g, bielkoviny < 1 g, soľ 0,02 g.',
+    volume: '0,33 l',
+    accent_color: '#9f1c61',
+    illustration_url: '/ilustracie/cvikla.webp',
+    sort_order: 20,
+  },
+  {
+    slug: 'paradajka',
+    sku: 'VP-PARAD-033',
+    name: 'Paradajka',
+    subtitle: '100% prírodná šťava zo slovenských paradajok',
+    description: 'Čistá chuť dozretých slovenských paradajok.',
+    composition: '100% prírodná šťava zo slovenských paradajok.',
+    nutrition:
+      'Energetická hodnota 57 kJ / 14 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0,1 g, sacharidy 4 g, z toho cukry < 0,5 g, bielkoviny 0,8 g, soľ 0,51 g.',
+    volume: '0,33 l',
+    accent_color: '#be202e',
+    illustration_url: '/ilustracie/paradajka.webp',
+    sort_order: 30,
+  },
+  {
+    slug: 'mrkvicka',
+    sku: 'VP-MRKVA-033',
+    name: 'Mrkvička',
+    subtitle: '100% prírodná šťava z mrkvy, jablka a marhule',
+    description: 'Mrkva zjemnená jablkom a marhuľou.',
+    composition: 'Šťava z jabĺk (50 %), mrkvová šťava (30 %), marhuľová šťava (20 %).',
+    nutrition:
+      'Energetická hodnota 232 kJ / 56 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0 g, sacharidy 12 g, z toho cukry 4,7 g, bielkoviny < 0,5 g, vláknina 0,6 g, soľ < 0,01 g.',
+    volume: '0,33 l',
+    accent_color: '#f48723',
+    illustration_url: '/ilustracie/mrkvicka.webp',
+    sort_order: 40,
+  },
+  {
+    slug: 'broskyna',
+    sku: 'VP-BROSK-033',
+    name: 'Broskyňka',
+    subtitle: '100% prírodná šťava z broskyne, jablka a mrkvy',
+    description: 'Hodvábne broskyňové pyré s jablkom.',
+    composition: 'Šťava z jabĺk (50 %), broskyňové pyré (45 %), mrkvová šťava (5 %).',
+    nutrition:
+      'Energetická hodnota 235 kJ / 57 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0 g, sacharidy 12 g, z toho cukry 4,7 g, bielkoviny < 0,5 g, vláknina 0,7 g, soľ < 0,01 g.',
+    volume: '0,33 l',
+    accent_color: '#f15f58',
+    illustration_url: '/ilustracie/broskyna.webp',
+    sort_order: 50,
+  },
+  {
+    slug: 'dulienka',
+    sku: 'VP-DULA-033',
+    name: 'Dulienka',
+    subtitle: '100% prírodná šťava z dule, jablka a hrušky',
+    description: 'Voňavá duľa, hruška a jablko.',
+    composition: 'Šťava z jabĺk (50 %), hruškové pyré (40 %), dulová šťava (5 %), dulové pyré (5 %).',
+    nutrition:
+      'Energetická hodnota 159 kJ / 39 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0 g, sacharidy 18 g, z toho cukry 7,8 g, bielkoviny < 0,5 g, soľ < 0,01 g.',
+    volume: '0,33 l',
+    accent_color: '#faa82d',
+    illustration_url: '/ilustracie/dulienka.webp',
+    sort_order: 60,
+  },
+  {
+    slug: 'aronilka',
+    sku: 'VP-ARONIA-033',
+    name: 'Arónilka',
+    subtitle: '100% prírodná šťava z arónie, jablka a slivky',
+    description: 'Tmavá arónia, slivka a jablko.',
+    composition: 'Šťava z jabĺk (85 %), sliviek (10 %) a arónie (5 %).',
+    nutrition:
+      'Energetická hodnota 238 kJ / 54 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0,2 g, sacharidy 12 g, z toho cukry 9,7 g, bielkoviny < 0,5 g, soľ 0 g.',
+    volume: '0,33 l',
+    accent_color: '#502c65',
+    illustration_url: '/ilustracie/aronilka.webp',
+    sort_order: 70,
+  },
+  {
+    slug: 'drienocka',
+    sku: 'VP-DRIEN-033',
+    name: 'Drienočka',
+    subtitle: '100% prírodná šťava z drienky, jablka a slivky',
+    description: 'Kyslastá drienka, slivka a jablko.',
+    composition: 'Jablková šťava (85 %), slivková šťava (10 %), drienková šťava (5 %).',
+    nutrition:
+      'Energetická hodnota 231 kJ / 55 kcal, tuky 0,5 g, z toho nasýtené mastné kyseliny 0,2 g, sacharidy 12 g, z toho cukry 9,6 g, bielkoviny < 0,5 g, soľ 0 g.',
+    volume: '0,33 l',
+    accent_color: '#9f243e',
+    illustration_url: '/ilustracie/drienocka.webp',
+    sort_order: 80,
+  },
+  {
+    slug: 'marhulienka',
+    sku: 'VP-MARHUL-033',
+    name: 'Marhulienka',
+    subtitle: '100% prírodná šťava z marhule, jablka a hrušky',
+    description: 'Letná marhuľa s jablkom a hruškou.',
+    composition: 'Jablková šťava (80 %), marhuľová šťava (10 %), hrušková šťava (10 %).',
+    nutrition:
+      'Energetická hodnota 226 kJ / 54 kcal, tuky < 0,5 g, z toho nasýtené mastné kyseliny 0 g, sacharidy 12 g, z toho cukry 10 g, bielkoviny < 0,5 g, soľ < 0,5 g.',
+    volume: '0,33 l',
+    accent_color: '#df683b',
+    illustration_url: '/ilustracie/marhulienka.webp',
+    sort_order: 90,
+  },
+]

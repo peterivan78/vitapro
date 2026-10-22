@@ -1,0 +1,184 @@
+import 'server-only'
+import { summarizeCrates } from '@/lib/crates'
+import { tomorrowInBratislava } from '@/lib/dates'
+import { customerConfirmationEmail, internalOrderEmail } from '@/lib/email/templates'
+import { sendEmail } from '@/lib/email/send'
+import { buildOrderPayload, type OrderPayload } from '@/lib/orders/orderPayload'
+import { getSettings } from '@/lib/settings'
+import { createServiceClient } from '@/lib/supabase/server'
+import type { Address, OrderCustomer, OrderDeliveryAddress, OrderItemRow, OrderRow, Product, Profile } from '@/lib/types'
+
+export type PlaceOrderInput = {
+  addressId: string
+  requestedDate: string | null
+  note: string
+  items: { product_id: string; quantity: number }[]
+}
+
+export class OrderError extends Error {}
+
+const MAX_ORDERS_PER_10_MIN = 5
+
+export async function placeOrder(profile: Profile, input: PlaceOrderInput) {
+  const db = createServiceClient()
+  const settings = await getSettings()
+
+  // Zlúčenie duplicitných riadkov toho istého produktu.
+  const merged = new Map<string, number>()
+  for (const i of input.items) merged.set(i.product_id, (merged.get(i.product_id) ?? 0) + i.quantity)
+
+  const summary = summarizeCrates([...merged.values()].reduce((a, b) => a + b, 0), settings.crate_size)
+  if (!summary.isValid) {
+    throw new OrderError(`Počet kusov musí byť násobkom ${settings.crate_size} (celé prepravky).`)
+  }
+
+  if (input.requestedDate && input.requestedDate < tomorrowInBratislava()) {
+    throw new OrderError('Požadovaný termín musí byť najskôr zajtra.')
+  }
+
+  const since = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+  const { count } = await db
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('profile_id', profile.id)
+    .gte('created_at', since)
+  if ((count ?? 0) >= MAX_ORDERS_PER_10_MIN) {
+    throw new OrderError('Príliš veľa objednávok za krátky čas. Skúste to o chvíľu.')
+  }
+
+  const { data: products, error: productsError } = await db
+    .from('products')
+    .select('*')
+    .in('id', [...merged.keys()])
+  if (productsError) throw productsError
+  const byId = new Map((products as Product[]).map((p) => [p.id, p]))
+  for (const id of merged.keys()) {
+    const p = byId.get(id)
+    if (!p) throw new OrderError('Niektorý produkt už nie je v ponuke. Obnovte stránku.')
+    if (p.status !== 'active') throw new OrderError(`${p.name} je momentálne nedostupný. Odstráňte ho z objednávky.`)
+  }
+
+  const { data: address } = await db
+    .from('addresses')
+    .select('*')
+    .eq('id', input.addressId)
+    .eq('profile_id', profile.id)
+    .eq('archived', false)
+    .maybeSingle<Address>()
+  if (!address) throw new OrderError('Vyberte platnú dodaciu adresu.')
+
+  const customer: OrderCustomer = {
+    customer_id: profile.id,
+    company_name: profile.company_name,
+    ico: profile.ico,
+    dic: profile.dic,
+    ic_dph: profile.ic_dph,
+    contact_name: profile.contact_name,
+    email: profile.email,
+    phone: profile.phone,
+    billing_address: {
+      street: profile.billing_street,
+      city: profile.billing_city,
+      zip: profile.billing_zip,
+      country: profile.billing_country,
+    },
+  }
+  const delivery: OrderDeliveryAddress = {
+    address_id: address.id,
+    label: address.label,
+    company: address.company,
+    street: address.street,
+    city: address.city,
+    zip: address.zip,
+    country: address.country,
+    contact_name: address.contact_name,
+    contact_phone: address.contact_phone,
+    note: address.note,
+  }
+
+  // Poradie položiek podľa katalógu, nie podľa poradia klikania.
+  const items = [...merged.entries()]
+    .map(([id, quantity]) => ({ product: byId.get(id)!, quantity }))
+    .sort((a, b) => a.product.sort_order - b.product.sort_order)
+    .map(({ product, quantity }) => ({ product_id: product.id, sku: product.sku, name: product.name, quantity }))
+
+  const { data: created, error } = await db
+    .rpc('create_order', {
+      p_profile_id: profile.id,
+      p_customer: customer,
+      p_delivery: delivery,
+      p_requested_date: input.requestedDate,
+      p_note: input.note,
+      p_crate_size: settings.crate_size,
+      p_items: items,
+    })
+    .single<{ order_id: string; order_number: string; created_at: string }>()
+  if (error || !created) {
+    console.error('[order] create_order failed', error)
+    throw new OrderError('Objednávku sa nepodarilo uložiť. Skúste to znova.')
+  }
+
+  const payload = buildOrderPayload({
+    orderNumber: created.order_number,
+    createdAt: new Date(created.created_at).toISOString(),
+    customer,
+    delivery,
+    requestedDate: input.requestedDate,
+    note: input.note,
+    crateSize: settings.crate_size,
+    items,
+  })
+
+  // Objednávka je uložená – zlyhanie emailu ju nesmie zrušiť. Stav odoslania
+  // sa uloží a admin vidí (a môže zopakovať), ktoré emaily neodišli.
+  await sendOrderEmails(created.order_id, payload, 'both')
+
+  return { orderNumber: created.order_number }
+}
+
+async function sendOrderEmails(orderId: string, payload: OrderPayload, which: 'internal' | 'customer' | 'both') {
+  const settings = await getSettings()
+  const [internal, confirmation] = await Promise.all([
+    which === 'customer'
+      ? null
+      : sendEmail({
+          to: settings.order_email,
+          replyTo: payload.customer.email,
+          ...internalOrderEmail(payload),
+          attachments: [
+            {
+              filename: `objednavka-${payload.order_number}.json`,
+              content: JSON.stringify(payload, null, 2),
+              contentType: 'application/json',
+            },
+          ],
+        }),
+    which === 'internal'
+      ? null
+      : sendEmail({ to: payload.customer.email, replyTo: settings.sales_email, ...customerConfirmationEmail(payload) }),
+  ])
+  const now = new Date().toISOString()
+  const update: Record<string, string> = {}
+  if (internal?.ok) update.internal_email_sent_at = now
+  if (confirmation?.ok) update.customer_email_sent_at = now
+  if (Object.keys(update).length) await createServiceClient().from('orders').update(update).eq('id', orderId)
+  return { ok: (internal?.ok ?? true) && (confirmation?.ok ?? true) }
+}
+
+/** Opätovné odoslanie emailov k uloženej objednávke (z adminu). */
+export async function resendOrderEmails(orderId: string, which: 'internal' | 'customer' | 'both') {
+  const db = createServiceClient()
+  const { data: order } = await db.from('orders').select('*, order_items(*)').eq('id', orderId).single<OrderRow & { order_items: OrderItemRow[] }>()
+  if (!order) throw new OrderError('Objednávka neexistuje.')
+  const payload = buildOrderPayload({
+    orderNumber: order.order_number,
+    createdAt: new Date(order.created_at).toISOString(),
+    customer: order.customer,
+    delivery: order.delivery_address,
+    requestedDate: order.requested_delivery_date,
+    note: order.note,
+    crateSize: order.crate_size,
+    items: [...order.order_items].sort((a, b) => a.line_no - b.line_no),
+  })
+  return sendOrderEmails(orderId, payload, which)
+}
