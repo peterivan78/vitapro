@@ -4,10 +4,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useActionState, useMemo, useState } from 'react'
 import { useCart } from '@/components/cart/CartProvider'
-import { CrateMeter } from '@/components/cart/CrateMeter'
+import { CrateFill } from '@/components/cart/CrateFill'
 import { FormError } from '@/components/form/Field'
 import { SubmitButton } from '@/components/form/SubmitButton'
-import { cratesLabel, summarizeCrates, unitsLabel } from '@/lib/crates'
+import { cratesLabel, currentCrateSlots, summarizeCrates, unitsLabel } from '@/lib/crates'
 import type { Address, Product } from '@/lib/types'
 import { submitOrderAction, type OrderFormState } from './actions'
 
@@ -35,6 +35,10 @@ export function CheckoutForm({
   )
   const units = lines.reduce((s, l) => s + l.quantity, 0)
   const summary = summarizeCrates(units, crateSize)
+  const crate = currentCrateSlots(
+    lines.map((l) => ({ key: l.product.id, color: l.product.accent_color, quantity: l.quantity })),
+    crateSize,
+  )
   const blocked = lines.some((l) => l.product.status !== 'active')
   const unknownInCart = hydrated && Object.keys(cart).some((id) => !products.some((p) => p.id === id))
 
@@ -151,17 +155,22 @@ export function CheckoutForm({
       </div>
 
       <aside className="lg:sticky lg:top-24 lg:self-start">
-        <div className="rounded-2xl bg-night p-7 text-white">
-          <p className="eyebrow text-white/50">Súhrn</p>
-          <div className="mt-5 flex items-center gap-4">
-            <CrateMeter units={units} crateSize={crateSize} />
-            <div>
-              <p className="text-2xl font-medium">{unitsLabel(units)}</p>
-              <p className="text-sm text-white/60">{cratesLabel(summary.fullCrates)} po {crateSize} ks</p>
-            </div>
+        <div className="rounded-2xl border border-line bg-white p-7">
+          <p className="eyebrow text-ink-mute">Súhrn</p>
+          <CrateFill
+            slots={crate.slots}
+            className="mx-auto mt-4 w-full max-w-xs"
+            label={`Prepravka: ${crate.slots.length} z ${crateSize} fliaš`}
+          />
+          <div className="mt-4 text-center">
+            <p className="text-2xl font-medium">{unitsLabel(units)}</p>
+            <p className="text-sm text-ink-mute">
+              {cratesLabel(summary.fullCrates)} po {crateSize} ks
+              {crate.completedCrates > 0 && summary.remainder > 0 && ' + rozpracovaná'}
+            </p>
           </div>
           {!summary.isValid && (
-            <p className="mt-5 rounded-lg bg-amber-300/15 px-3 py-2 text-sm text-amber-200">
+            <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Doplňte ešte {unitsLabel(summary.missing)}, aby boli prepravky plné.
             </p>
           )}
@@ -169,13 +178,13 @@ export function CheckoutForm({
           <div className="mt-6 space-y-4">
             <FormError message={state.error} />
             <SubmitButton
-              className="btn btn-light w-full"
+              className="btn btn-primary w-full"
               pendingText="Odosielam objednávku…"
               disabled={!summary.isValid || blocked || !addressId}
             >
               Odoslať objednávku
             </SubmitButton>
-            <p className="text-xs leading-relaxed text-white/50">
+            <p className="text-xs leading-relaxed text-ink-mute">
               Odoslaním potvrdzujete objednávku podľa{' '}
               <Link href="/obchodne-podmienky" className="underline">
                 obchodných podmienok

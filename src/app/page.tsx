@@ -21,7 +21,7 @@ export default async function HomePage() {
           <div className="mb-14 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
             <div className="max-w-xl">
               <p className="eyebrow text-ink-mute">Naša ponuka</p>
-              <h2 className="mt-3 font-display text-4xl leading-tight sm:text-5xl">Deväť chutí, jedna fľaša 0,33 l</h2>
+              <h2 className="mt-3 font-display text-4xl leading-tight sm:text-5xl">Deväť chutí, jedna fľaša 0,33&nbsp;l</h2>
             </div>
             <p className="max-w-sm text-ink-soft">
               {ordering
@@ -36,7 +36,7 @@ export default async function HomePage() {
       <HowToOrder crateSize={settings.crate_size} />
       <Contact name={settings.sales_name} email={settings.sales_email} phone={settings.sales_phone} />
       {ordering && <div className="h-28" aria-hidden />}
-      <OrderBar crateSize={settings.crate_size} />
+      <OrderBar crateSize={settings.crate_size} products={products.map((p) => ({ id: p.id, color: p.accent_color }))} />
     </main>
   )
 }

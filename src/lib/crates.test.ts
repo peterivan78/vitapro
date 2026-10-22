@@ -1,4 +1,4 @@
-import { clampQuantity, cratesLabel, summarizeCrates, totalUnits, unitsLabel } from './crates'
+import { clampQuantity, cratesLabel, currentCrateSlots, summarizeCrates, totalUnits, unitsLabel } from './crates'
 
 describe('summarizeCrates', () => {
   it('rejects an empty order', () => {
@@ -38,5 +38,24 @@ describe('Slovak plurals', () => {
   it('declines crates and units', () => {
     expect([1, 2, 5].map(cratesLabel)).toEqual(['1 prepravka', '2 prepravky', '5 prepraviek'])
     expect([1, 3, 12].map(unitsLabel)).toEqual(['1 kus', '3 kusy', '12 kusov'])
+  })
+})
+
+describe('currentCrateSlots', () => {
+  const lines = [
+    { key: 'a', color: '#111111', quantity: 10 },
+    { key: 'b', color: '#222222', quantity: 5 },
+  ]
+
+  it('shows the crate being filled after the full ones', () => {
+    const r = currentCrateSlots(lines)
+    expect(r.completedCrates).toBe(1)
+    expect(r.slots.map((s) => s.key)).toEqual(['b', 'b', 'b'])
+  })
+
+  it('shows the last full crate when everything fits exactly', () => {
+    const r = currentCrateSlots([{ key: 'a', color: '#111111', quantity: 24 }])
+    expect(r.completedCrates).toBe(1)
+    expect(r.slots).toHaveLength(12)
   })
 })

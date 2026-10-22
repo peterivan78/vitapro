@@ -48,3 +48,16 @@ export function unitsLabel(n: number): string {
   if (n >= 2 && n <= 4) return `${n} kusy`
   return `${n} kusov`
 }
+
+export type CrateLine = { key: string; color: string; quantity: number }
+
+/**
+ * Obsah prepravky, ktorá sa práve plní (alebo poslednej plnej), pre ilustráciu.
+ * Kusy sa ukladajú v poradí katalógu – rovnaké chute sú vedľa seba.
+ */
+export function currentCrateSlots(lines: CrateLine[], crateSize = DEFAULT_CRATE_SIZE) {
+  const units = lines.flatMap((l) => Array.from({ length: l.quantity }, () => ({ key: l.key, color: l.color })))
+  const s = summarizeCrates(units.length, crateSize)
+  const start = s.remainder > 0 ? s.fullCrates * crateSize : Math.max(0, units.length - crateSize)
+  return { slots: units.slice(start, start + crateSize), completedCrates: s.remainder > 0 ? s.fullCrates : Math.max(0, s.fullCrates - 1) }
+}

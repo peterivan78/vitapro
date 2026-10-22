@@ -43,7 +43,7 @@ function ProductCard({ product: p, crateSize, priority }: { product: Product; cr
       </div>
 
       <div className="mt-5 flex items-baseline justify-between gap-3">
-        <h3 id={`p-${p.slug}`} className="font-display text-[1.7rem] font-semibold italic leading-tight">
+        <h3 id={`p-${p.slug}`} className="font-display text-[1.7rem] font-bold italic leading-tight">
           {p.name}
         </h3>
         <span className="shrink-0 text-sm text-ink-mute">{p.volume}</span>
