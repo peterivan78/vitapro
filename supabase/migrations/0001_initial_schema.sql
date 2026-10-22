@@ -269,6 +269,18 @@ grant execute on function public.create_order(uuid, jsonb, jsonb, date, text, in
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
+-- Oprávnenia rolí (projekt má vypnuté „Automatically expose new tables“)
+--   service_role – server (Next.js serverové akcie): plný prístup, obchádza RLS
+--   authenticated – prihlásený používateľ: len čítanie, ďalej obmedzené RLS
+--   anon – návštevník: len čítanie katalógu
+-- ---------------------------------------------------------------------------
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant select on public.products to anon, authenticated;
+grant select on public.profiles, public.addresses, public.orders, public.order_items to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Row Level Security
 -- ---------------------------------------------------------------------------
 alter table public.products enable row level security;
