@@ -81,7 +81,9 @@ function itemsText(p: OrderPayload): string {
 // ---------------------------------------------------------------------------
 // Potvrdenie pre zákazníka
 // ---------------------------------------------------------------------------
-export function customerConfirmationEmail(p: OrderPayload, cancelUrl?: string): EmailContent {
+export type CancelLink = { url: string; deadline: string }
+
+export function customerConfirmationEmail(p: OrderPayload, cancel?: CancelLink): EmailContent {
   const subject = `Prijali sme vašu objednávku ${p.order_number} – VITAPRO`
   const delivery = addressLines(p.delivery.address)
   const html = layout(
@@ -95,7 +97,7 @@ ${itemsTableHtml(p)}
 <p style="margin:16px 0 0"><strong>Požadovaný termín:</strong> ${formatDateSk(p.delivery.requested_date)}</p>
 ${p.note ? `<p style="margin:8px 0 0"><strong>Poznámka:</strong> ${escapeHtml(p.note)}</p>` : ''}
 <p style="margin:24px 0 0;color:#6f6a63;font-size:13px">Ak potrebujete objednávku zmeniť, odpovedzte na tento email.</p>
-${cancelUrl ? cancelBlockHtml(cancelUrl) : ''}`,
+${cancel ? cancelBlockHtml(cancel) : ''}`,
   )
   const text = `Dobrý deň,
 
@@ -111,7 +113,7 @@ ${delivery.join('\n')}
 Požadovaný termín: ${formatDateSk(p.delivery.requested_date)}
 ${p.note ? `Poznámka: ${p.note}\n` : ''}
 Ak potrebujete objednávku zmeniť, odpovedzte na tento email.
-${cancelUrl ? `\nNeobjednávali ste? Objednávku zrušíte tu (kým ju nezačneme spracúvať):\n${cancelUrl}\n` : ''}
+${cancel ? `\nTúto objednávku ste nezadali vy? Zrušiť ju môžete do ${formatDateTimeSk(cancel.deadline)}:\n${cancel.url}\n` : ''}
 AQUA PRO EUROPE, a.s.`
   return { subject, html, text }
 }
@@ -217,11 +219,11 @@ export function accountApprovedEmail(r: { contact_name: string; siteUrl: string 
   return { subject, html, text: `Dobrý deň,\n\nváš účet bol schválený. Odteraz môžete objednávať šťavy VITAPRO.\n\n${r.siteUrl}` }
 }
 
-function cancelBlockHtml(url: string): string {
+function cancelBlockHtml({ url, deadline }: CancelLink): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid #ece6dc">
 <tr><td style="padding-top:20px;font-size:13px;color:#6f6a63">
 <strong style="color:#1d1b1a">Túto objednávku ste nezadali vy?</strong><br>
-Zrušte ju, kým ju obchodné oddelenie nezačne spracúvať, a zmeňte si heslo.<br>
+Zrušiť ju môžete do <strong>${escapeHtml(formatDateTimeSk(deadline))}</strong> a zmeňte si heslo.<br>
 <a href="${escapeHtml(url)}" style="display:inline-block;margin-top:12px;border:1px solid #b3261e;color:#b3261e;padding:8px 16px;border-radius:4px;text-decoration:none">Zrušiť objednávku</a>
 </td></tr></table>`
 }

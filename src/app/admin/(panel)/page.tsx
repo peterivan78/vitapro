@@ -2,6 +2,8 @@ import { requireAdminPage } from '@/lib/auth'
 import Link from 'next/link'
 import { AdminTitle, Badge, Empty, FilterTabs } from '@/components/admin/ui'
 import { formatDateSk, formatDateTimeSk } from '@/lib/email/templates'
+import { cancelDeadline, isWithinCancelWindow } from '@/lib/orders/cancelWindow'
+import { getSettings } from '@/lib/settings'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ORDER_STATUS_LABEL, type OrderRow, type OrderStatus } from '@/lib/types'
 
@@ -27,9 +29,10 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<'/admi
     const like = `%${query.replace(/[%_,()"\\]/g, '')}%`
     req = req.or(`order_number.ilike.${like},customer->>company_name.ilike.${like},customer->>ico.ilike.${like}`)
   }
-  const [{ data: orders }, { count: newCount }] = await Promise.all([
+  const [{ data: orders }, { count: newCount }, settings] = await Promise.all([
     req,
     db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'new'),
+    getSettings(),
   ])
 
   return (
@@ -87,6 +90,12 @@ export default async function AdminOrdersPage({ searchParams }: PageProps<'/admi
                   <td className="px-4 py-3 text-ink-soft">{formatDateSk(o.requested_delivery_date)}</td>
                   <td className="px-4 py-3">
                     <Badge tone={TONE[o.status]}>{ORDER_STATUS_LABEL[o.status]}</Badge>
+                    {o.status === 'new' && isWithinCancelWindow(o.created_at, settings.cancel_window_minutes) && (
+                      <span className="mt-1 block text-xs text-warn">
+                        zákazník môže zrušiť do{' '}
+                        {formatDateTimeSk(cancelDeadline(o.created_at, settings.cancel_window_minutes)!.toISOString()).split(' ').pop()}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

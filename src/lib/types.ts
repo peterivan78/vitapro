@@ -65,6 +65,7 @@ export type Settings = {
   sales_phone: string
   auto_approve_known_ico: boolean
   crate_size: number
+  cancel_window_minutes: number
 }
 
 export type OrderRow = {

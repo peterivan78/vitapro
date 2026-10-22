@@ -1,9 +1,10 @@
 import 'server-only'
 import { summarizeCrates } from '@/lib/crates'
 import { tomorrowInBratislava } from '@/lib/dates'
-import { customerConfirmationEmail, internalOrderEmail } from '@/lib/email/templates'
+import { customerConfirmationEmail, internalOrderEmail, type CancelLink } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/send'
 import { createCancelToken } from '@/lib/orders/cancelToken'
+import { cancelDeadline } from '@/lib/orders/cancelWindow'
 import { buildOrderPayload, type OrderPayload } from '@/lib/orders/orderPayload'
 import { getSettings } from '@/lib/settings'
 import { siteUrl } from '@/lib/site'
@@ -155,7 +156,7 @@ async function sendOrderEmails(orderId: string, payload: OrderPayload, which: 'i
             },
           ],
         }),
-    which === 'internal' ? null : sendCustomerConfirmation(orderId, payload, settings.sales_email),
+    which === 'internal' ? null : sendCustomerConfirmation(orderId, payload, settings.sales_email, settings.cancel_window_minutes),
   ])
   const now = new Date().toISOString()
   const update: Record<string, string> = {}
@@ -167,12 +168,17 @@ async function sendOrderEmails(orderId: string, payload: OrderPayload, which: 'i
 
 // Každé odoslanie potvrdenia vytvorí nový odkaz na zrušenie (v DB je len
 // odtlačok, takže starý odkaz sa tým zneplatní).
-async function sendCustomerConfirmation(orderId: string, payload: OrderPayload, salesEmail: string) {
-  const { token, hash } = createCancelToken()
-  const { error } = await createServiceClient().from('orders').update({ cancel_token_hash: hash }).eq('id', orderId)
-  const cancelUrl = error ? undefined : siteUrl(`/objednavka/zrusit?t=${token}`)
-  if (error) console.error('[order] cancel token not stored', error)
-  return sendEmail({ to: payload.customer.email, replyTo: salesEmail, ...customerConfirmationEmail(payload, cancelUrl) })
+async function sendCustomerConfirmation(orderId: string, payload: OrderPayload, salesEmail: string, windowMinutes: number) {
+  // Po uplynutí lehoty (napr. pri opätovnom odoslaní z adminu) odkaz nepridávame.
+  let cancel: CancelLink | undefined
+  const deadline = cancelDeadline(payload.created_at, windowMinutes)
+  if (deadline && deadline > new Date()) {
+    const { token, hash } = createCancelToken()
+    const { error } = await createServiceClient().from('orders').update({ cancel_token_hash: hash }).eq('id', orderId)
+    if (error) console.error('[order] cancel token not stored', error)
+    else cancel = { url: siteUrl(`/objednavka/zrusit?t=${token}`), deadline: deadline.toISOString() }
+  }
+  return sendEmail({ to: payload.customer.email, replyTo: salesEmail, ...customerConfirmationEmail(payload, cancel) })
 }
 
 /** Opätovné odoslanie emailov k uloženej objednávke (z adminu). */

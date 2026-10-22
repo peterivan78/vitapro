@@ -91,9 +91,13 @@ describe('helpers', () => {
 describe('cancellation', () => {
   it('adds a cancel button only when a link is given', () => {
     expect(customerConfirmationEmail(payload).html).not.toContain('Zrušiť objednávku')
-    const withLink = customerConfirmationEmail(payload, 'https://web.sk/objednavka/zrusit?t=abc')
+    const withLink = customerConfirmationEmail(payload, {
+      url: 'https://web.sk/objednavka/zrusit?t=abc',
+      deadline: '2026-10-22T10:30:00.000Z',
+    })
     expect(withLink.html).toContain('href="https://web.sk/objednavka/zrusit?t=abc"')
     expect(withLink.text).toContain('https://web.sk/objednavka/zrusit?t=abc')
+    expect(withLink.text).toContain('12:30') // termín v slovenskom čase
   })
 
   it('tells sales not to process a cancelled order, with machine-readable JSON', () => {

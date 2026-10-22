@@ -41,6 +41,22 @@ export function SettingsForm({ settings: s }: { settings: Settings }) {
         <p className="text-sm text-ink-mute">Veľkosť prepravky: {s.crate_size} ks (mení sa v databáze).</p>
       </fieldset>
 
+      <fieldset className="space-y-3">
+        <legend className="eyebrow mb-5 text-ink-mute">Zrušenie objednávky zákazníkom</legend>
+        <Field
+          label="Lehota na zrušenie (minúty od odoslania)"
+          name="cancel_window_minutes"
+          type="number"
+          min={0}
+          max={10080}
+          required
+          defaultValue={s.cancel_window_minutes}
+          error={e.cancel_window_minutes}
+          hint="Napr. 120 = 2 hodiny. Objednávky nespracúvajte skôr, než lehota uplynie. 0 = zákazník nemôže rušiť."
+          className="max-w-xs"
+        />
+      </fieldset>
+
       <SubmitButton pendingText="Ukladám…">Uložiť nastavenia</SubmitButton>
     </form>
   )

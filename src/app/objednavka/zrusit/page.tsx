@@ -5,6 +5,7 @@ import { SubmitButton } from '@/components/form/SubmitButton'
 import { cratesLabel } from '@/lib/crates'
 import { formatDateTimeSk } from '@/lib/email/templates'
 import { hashCancelToken, isWellFormedCancelToken } from '@/lib/orders/cancelToken'
+import { cancelDeadline, isWithinCancelWindow } from '@/lib/orders/cancelWindow'
 import { getSettings } from '@/lib/settings'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { OrderRow } from '@/lib/types'
@@ -41,6 +42,16 @@ export default async function CancelOrderPage({ searchParams }: PageProps<'/obje
       </PageShell>
     )
   }
+  const expired = (
+    <PageShell eyebrow="Objednávka" title="Lehota na zrušenie uplynula">
+      <p className="leading-relaxed text-ink-soft">
+        Objednávku už mohlo obchodné oddelenie spracovať, preto ju nejde zrušiť online. Ozvite sa nám prosím čo najskôr.
+      </p>
+      {contact}
+    </PageShell>
+  )
+  if (stav === 'vyprsalo') return expired
+
   if (stav === 'spracuva-sa') {
     return (
       <PageShell eyebrow="Objednávka" title="Objednávka sa už spracúva">
@@ -71,6 +82,8 @@ export default async function CancelOrderPage({ searchParams }: PageProps<'/obje
     )
   }
 
+  if (order.status === 'new' && !isWithinCancelWindow(order.created_at, settings.cancel_window_minutes)) return expired
+
   if (order.status !== 'new') {
     return (
       <PageShell eyebrow="Objednávka" title="Objednávka sa už spracúva">
@@ -93,6 +106,8 @@ export default async function CancelOrderPage({ searchParams }: PageProps<'/obje
         <dd>
           {order.total_units} ks · {cratesLabel(order.crates)}
         </dd>
+        <dt className="text-ink-mute">Zrušiť do</dt>
+        <dd>{formatDateTimeSk(cancelDeadline(order.created_at, settings.cancel_window_minutes)!.toISOString())}</dd>
       </dl>
       <form action={cancelByTokenAction} className="mt-8 flex flex-wrap items-center gap-4">
         <input type="hidden" name="t" value={t as string} />

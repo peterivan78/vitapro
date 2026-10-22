@@ -103,6 +103,7 @@ export const settingsSchema = z.object({
   sales_email: z.string().trim().email('Neplatný email.'),
   sales_phone: line(40),
   auto_approve_known_ico: z.boolean(),
+  cancel_window_minutes: z.coerce.number().int().min(0, 'Minimálne 0.').max(10080, 'Najviac 7 dní (10080 min).'),
 })
 
 /** Prvá chybová hláška pre každé pole – na zobrazenie pri formulári. */

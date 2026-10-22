@@ -7,7 +7,7 @@ import type { OrderRow } from '@/lib/types'
 
 export type CancelResult =
   | { ok: true; orderNumber: string }
-  | { ok: false; reason: 'not_found' | 'already_cancelled' | 'in_progress' }
+  | { ok: false; reason: 'not_found' | 'already_cancelled' | 'in_progress' | 'expired' }
 
 /**
  * Zruší objednávku, len kým je v stave „nová“ (obchod ju ešte nezačal
@@ -20,11 +20,17 @@ export async function cancelOrder(
 ): Promise<CancelResult> {
   const db = createServiceClient()
   const now = new Date().toISOString()
+  const settings = await getSettings()
+  if (settings.cancel_window_minutes <= 0) return { ok: false, reason: 'expired' }
+  // Objednávky staršie ako lehota sa už zrušiť nedajú – mohli byť spracované
+  // v internom systéme bez toho, aby sa zmenil ich stav na webe.
+  const createdAfter = new Date(Date.now() - settings.cancel_window_minutes * 60_000).toISOString()
 
   let q = db
     .from('orders')
     .update({ status: 'cancelled', cancelled_at: now, cancelled_via: via, cancel_token_hash: null })
     .eq('status', 'new')
+    .gt('created_at', createdAfter)
   if ('cancelTokenHash' in match) q = q.eq('cancel_token_hash', match.cancelTokenHash)
   else {
     q = q.eq('id', match.id)
@@ -33,15 +39,17 @@ export async function cancelOrder(
   const { data: cancelled } = await q.select('*').maybeSingle<OrderRow>()
 
   if (!cancelled) {
-    let check = db.from('orders').select('status')
+    let check = db.from('orders').select('status, created_at')
     if ('cancelTokenHash' in match) check = check.eq('cancel_token_hash', match.cancelTokenHash)
     else {
       check = check.eq('id', match.id)
       if (match.profileId) check = check.eq('profile_id', match.profileId)
     }
-    const { data } = await check.maybeSingle<{ status: OrderRow['status'] }>()
+    const { data } = await check.maybeSingle<{ status: OrderRow['status']; created_at: string }>()
     if (!data) return { ok: false, reason: 'not_found' }
-    return { ok: false, reason: data.status === 'cancelled' ? 'already_cancelled' : 'in_progress' }
+    if (data.status === 'cancelled') return { ok: false, reason: 'already_cancelled' }
+    if (data.status === 'new') return { ok: false, reason: 'expired' }
+    return { ok: false, reason: 'in_progress' }
   }
 
   const info: CancellationInfo = {
@@ -52,7 +60,6 @@ export async function cancelOrder(
     cancelled_at: now,
     via,
   }
-  const settings = await getSettings()
   await Promise.all([
     sendEmail({ to: settings.order_email, replyTo: info.email, ...internalCancellationEmail(info) }),
     sendEmail({ to: info.email, replyTo: settings.sales_email, ...customerCancellationEmail(info) }),

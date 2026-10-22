@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sales_phone: '',
   auto_approve_known_ico: false,
   crate_size: 12,
+  cancel_window_minutes: 120,
 }
 
 export async function getSettings(): Promise<Settings> {

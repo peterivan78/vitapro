@@ -8,6 +8,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { ORDER_STATUS_LABEL, PROFILE_STATUS_LABEL, type Address, type OrderItemRow, type OrderRow } from '@/lib/types'
 import { AddressBook } from './AddressBook'
 import { cancelOwnOrderAction } from './actions'
+import { isWithinCancelWindow } from '@/lib/orders/cancelWindow'
+import { getSettings } from '@/lib/settings'
 import { ProfileForm } from './ProfileForm'
 import { ReorderButton } from './ReorderButton'
 
@@ -26,6 +28,7 @@ export default async function AccountPage({ searchParams }: PageProps<'/ucet'>) 
   }
 
   const db = createServiceClient()
+  const settings = await getSettings()
   const [{ data: addresses }, { data: orders }] = await Promise.all([
     db.from('addresses').select('*').eq('profile_id', profile.id).eq('archived', false).order('is_default', { ascending: false }).order('created_at'),
     db.from('orders').select('*, order_items(*)').eq('profile_id', profile.id).order('created_at', { ascending: false }).limit(50),
@@ -89,7 +92,7 @@ export default async function AccountPage({ searchParams }: PageProps<'/ucet'>) 
                         {o.note && <p>Poznámka: {o.note}</p>}
                         <div className="flex flex-wrap gap-5 pt-2">
                           <ReorderButton items={o.order_items} />
-                          {o.status === 'new' && (
+                          {o.status === 'new' && isWithinCancelWindow(o.created_at, settings.cancel_window_minutes) && (
                             <form action={cancelOwnOrderAction}>
                               <input type="hidden" name="id" value={o.id} />
                               <ConfirmButton message={`Naozaj zrušiť objednávku ${o.order_number}?`} className="text-sm text-danger underline underline-offset-4">
