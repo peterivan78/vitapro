@@ -62,6 +62,14 @@ export default async function AdminOrderDetailPage({ params }: PageProps<'/admin
         }
       />
       <p className="-mt-6 mb-8 text-sm text-ink-mute">Vytvorená {formatDateTimeSk(order.created_at)}</p>
+      {order.cancelled_at && (
+        <p className="-mt-4 mb-8 rounded-lg bg-danger/5 px-4 py-3 text-sm text-danger">
+          Zrušená {formatDateTimeSk(order.cancelled_at)}
+          {order.cancelled_via === 'email' && ' – zákazníkom cez odkaz v emaile'}
+          {order.cancelled_via === 'account' && ' – zákazníkom v jeho účte'}
+          {order.cancelled_via === 'admin' && ' – v administrácii'}
+        </p>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[1.3fr_1fr]">
         <section className="rounded-xl border border-line p-6">

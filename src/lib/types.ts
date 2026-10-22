@@ -81,6 +81,8 @@ export type OrderRow = {
   crate_size: number
   customer_email_sent_at: string | null
   internal_email_sent_at: string | null
+  cancelled_at: string | null
+  cancelled_via: 'email' | 'account' | 'admin' | null
   created_at: string
 }
 

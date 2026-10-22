@@ -5,6 +5,7 @@ import {
   customerConfirmationEmail,
   escapeHtml,
   formatDateSk,
+  internalCancellationEmail,
   internalOrderEmail,
 } from './templates'
 
@@ -84,5 +85,28 @@ describe('helpers', () => {
   it('formats dates and escapes HTML', () => {
     expect(formatDateSk(null)).toBe('—')
     expect(escapeHtml(`"a" & 'b'`)).toBe('&quot;a&quot; &amp; &#39;b&#39;')
+  })
+})
+
+describe('cancellation', () => {
+  it('adds a cancel button only when a link is given', () => {
+    expect(customerConfirmationEmail(payload).html).not.toContain('Zrušiť objednávku')
+    const withLink = customerConfirmationEmail(payload, 'https://web.sk/objednavka/zrusit?t=abc')
+    expect(withLink.html).toContain('href="https://web.sk/objednavka/zrusit?t=abc"')
+    expect(withLink.text).toContain('https://web.sk/objednavka/zrusit?t=abc')
+  })
+
+  it('tells sales not to process a cancelled order, with machine-readable JSON', () => {
+    const email = internalCancellationEmail({
+      order_number: 'OBJ-2026-00042',
+      company_name: 'Bistro s.r.o.',
+      ico: '12345678',
+      email: 'jana@example.sk',
+      cancelled_at: '2026-10-22T09:00:00.000Z',
+      via: 'email',
+    })
+    expect(email.subject).toBe('[ZRUŠENÁ] OBJ-2026-00042 | Bistro s.r.o. | IČO 12345678')
+    const json = email.text.slice(email.text.indexOf(JSON_BEGIN) + JSON_BEGIN.length, email.text.indexOf(JSON_END))
+    expect(JSON.parse(json)).toMatchObject({ schema: 'vitapro.order-cancellation.v1', order_number: 'OBJ-2026-00042', via: 'email' })
   })
 })

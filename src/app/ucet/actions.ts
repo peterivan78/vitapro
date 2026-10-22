@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { AccessError, getViewer } from '@/lib/auth'
+import { cancelOrder } from '@/lib/orders/cancelOrder'
 import { createServiceClient } from '@/lib/supabase/server'
 import { addressSchema, fieldErrors, profileSchema } from '@/lib/validation'
 
@@ -85,4 +86,10 @@ export async function updateProfileAction(_prev: AccountFormState, formData: For
   } catch (e) {
     return handle(e)
   }
+}
+
+export async function cancelOwnOrderAction(formData: FormData) {
+  const profileId = await requireProfileId()
+  await cancelOrder({ id: String(formData.get('id') ?? ''), profileId }, 'account')
+  revalidatePath('/ucet')
 }

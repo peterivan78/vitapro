@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ConfirmButton } from '@/components/form/ConfirmButton'
 import { FormNotice } from '@/components/form/Field'
 import { requireViewer } from '@/lib/auth'
 import { cratesLabel } from '@/lib/crates'
@@ -6,6 +7,7 @@ import { formatDateSk, formatDateTimeSk } from '@/lib/email/templates'
 import { createServiceClient } from '@/lib/supabase/server'
 import { ORDER_STATUS_LABEL, PROFILE_STATUS_LABEL, type Address, type OrderItemRow, type OrderRow } from '@/lib/types'
 import { AddressBook } from './AddressBook'
+import { cancelOwnOrderAction } from './actions'
 import { ProfileForm } from './ProfileForm'
 import { ReorderButton } from './ReorderButton'
 
@@ -85,8 +87,16 @@ export default async function AccountPage({ searchParams }: PageProps<'/ucet'>) 
                         </p>
                         <p>Požadovaný termín: {formatDateSk(o.requested_delivery_date)}</p>
                         {o.note && <p>Poznámka: {o.note}</p>}
-                        <div className="pt-2">
+                        <div className="flex flex-wrap gap-5 pt-2">
                           <ReorderButton items={o.order_items} />
+                          {o.status === 'new' && (
+                            <form action={cancelOwnOrderAction}>
+                              <input type="hidden" name="id" value={o.id} />
+                              <ConfirmButton message={`Naozaj zrušiť objednávku ${o.order_number}?`} className="text-sm text-danger underline underline-offset-4">
+                                Zrušiť objednávku
+                              </ConfirmButton>
+                            </form>
+                          )}
                         </div>
                       </div>
                     </div>

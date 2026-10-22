@@ -3,8 +3,10 @@ import { summarizeCrates } from '@/lib/crates'
 import { tomorrowInBratislava } from '@/lib/dates'
 import { customerConfirmationEmail, internalOrderEmail } from '@/lib/email/templates'
 import { sendEmail } from '@/lib/email/send'
+import { createCancelToken } from '@/lib/orders/cancelToken'
 import { buildOrderPayload, type OrderPayload } from '@/lib/orders/orderPayload'
 import { getSettings } from '@/lib/settings'
+import { siteUrl } from '@/lib/site'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { Address, OrderCustomer, OrderDeliveryAddress, OrderItemRow, OrderRow, Product, Profile } from '@/lib/types'
 
@@ -153,9 +155,7 @@ async function sendOrderEmails(orderId: string, payload: OrderPayload, which: 'i
             },
           ],
         }),
-    which === 'internal'
-      ? null
-      : sendEmail({ to: payload.customer.email, replyTo: settings.sales_email, ...customerConfirmationEmail(payload) }),
+    which === 'internal' ? null : sendCustomerConfirmation(orderId, payload, settings.sales_email),
   ])
   const now = new Date().toISOString()
   const update: Record<string, string> = {}
@@ -163,6 +163,16 @@ async function sendOrderEmails(orderId: string, payload: OrderPayload, which: 'i
   if (confirmation?.ok) update.customer_email_sent_at = now
   if (Object.keys(update).length) await createServiceClient().from('orders').update(update).eq('id', orderId)
   return { ok: (internal?.ok ?? true) && (confirmation?.ok ?? true) }
+}
+
+// Každé odoslanie potvrdenia vytvorí nový odkaz na zrušenie (v DB je len
+// odtlačok, takže starý odkaz sa tým zneplatní).
+async function sendCustomerConfirmation(orderId: string, payload: OrderPayload, salesEmail: string) {
+  const { token, hash } = createCancelToken()
+  const { error } = await createServiceClient().from('orders').update({ cancel_token_hash: hash }).eq('id', orderId)
+  const cancelUrl = error ? undefined : siteUrl(`/objednavka/zrusit?t=${token}`)
+  if (error) console.error('[order] cancel token not stored', error)
+  return sendEmail({ to: payload.customer.email, replyTo: salesEmail, ...customerConfirmationEmail(payload, cancelUrl) })
 }
 
 /** Opätovné odoslanie emailov k uloženej objednávke (z adminu). */

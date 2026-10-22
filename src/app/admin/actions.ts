@@ -29,7 +29,14 @@ export async function setOrderStatusAction(formData: FormData) {
   const id = String(formData.get('id'))
   const status = String(formData.get('status')) as OrderStatus
   if (!ORDER_STATUSES.includes(status)) return
-  await createServiceClient().from('orders').update({ status }).eq('id', id)
+  await createServiceClient()
+    .from('orders')
+    .update(
+      status === 'cancelled'
+        ? { status, cancelled_at: new Date().toISOString(), cancelled_via: 'admin', cancel_token_hash: null }
+        : { status },
+    )
+    .eq('id', id)
   revalidatePath('/admin')
   revalidatePath(`/admin/objednavky/${id}`)
 }

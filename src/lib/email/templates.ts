@@ -81,7 +81,7 @@ function itemsText(p: OrderPayload): string {
 // ---------------------------------------------------------------------------
 // Potvrdenie pre zákazníka
 // ---------------------------------------------------------------------------
-export function customerConfirmationEmail(p: OrderPayload): EmailContent {
+export function customerConfirmationEmail(p: OrderPayload, cancelUrl?: string): EmailContent {
   const subject = `Prijali sme vašu objednávku ${p.order_number} – VITAPRO`
   const delivery = addressLines(p.delivery.address)
   const html = layout(
@@ -94,7 +94,8 @@ ${itemsTableHtml(p)}
 <p style="margin:0">${delivery.map(escapeHtml).join('<br>')}</p>
 <p style="margin:16px 0 0"><strong>Požadovaný termín:</strong> ${formatDateSk(p.delivery.requested_date)}</p>
 ${p.note ? `<p style="margin:8px 0 0"><strong>Poznámka:</strong> ${escapeHtml(p.note)}</p>` : ''}
-<p style="margin:24px 0 0;color:#6f6a63;font-size:13px">Ak potrebujete objednávku zmeniť, odpovedzte na tento email.</p>`,
+<p style="margin:24px 0 0;color:#6f6a63;font-size:13px">Ak potrebujete objednávku zmeniť, odpovedzte na tento email.</p>
+${cancelUrl ? cancelBlockHtml(cancelUrl) : ''}`,
   )
   const text = `Dobrý deň,
 
@@ -110,7 +111,7 @@ ${delivery.join('\n')}
 Požadovaný termín: ${formatDateSk(p.delivery.requested_date)}
 ${p.note ? `Poznámka: ${p.note}\n` : ''}
 Ak potrebujete objednávku zmeniť, odpovedzte na tento email.
-
+${cancelUrl ? `\nNeobjednávali ste? Objednávku zrušíte tu (kým ju nezačneme spracúvať):\n${cancelUrl}\n` : ''}
 AQUA PRO EUROPE, a.s.`
   return { subject, html, text }
 }
@@ -214,4 +215,74 @@ export function accountApprovedEmail(r: { contact_name: string; siteUrl: string 
 <p><a href="${escapeHtml(r.siteUrl)}" style="display:inline-block;background:#1d1b1a;color:#fff;padding:10px 18px;border-radius:4px;text-decoration:none">Prejsť na objednávku</a></p>`,
   )
   return { subject, html, text: `Dobrý deň,\n\nváš účet bol schválený. Odteraz môžete objednávať šťavy VITAPRO.\n\n${r.siteUrl}` }
+}
+
+function cancelBlockHtml(url: string): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;border-top:1px solid #ece6dc">
+<tr><td style="padding-top:20px;font-size:13px;color:#6f6a63">
+<strong style="color:#1d1b1a">Túto objednávku ste nezadali vy?</strong><br>
+Zrušte ju, kým ju obchodné oddelenie nezačne spracúvať, a zmeňte si heslo.<br>
+<a href="${escapeHtml(url)}" style="display:inline-block;margin-top:12px;border:1px solid #b3261e;color:#b3261e;padding:8px 16px;border-radius:4px;text-decoration:none">Zrušiť objednávku</a>
+</td></tr></table>`
+}
+
+// ---------------------------------------------------------------------------
+// Zrušenie objednávky
+// ---------------------------------------------------------------------------
+export const CANCEL_SCHEMA_VERSION = 'vitapro.order-cancellation.v1'
+
+export type CancellationInfo = {
+  order_number: string
+  company_name: string
+  ico: string
+  email: string
+  cancelled_at: string
+  via: 'email' | 'account' | 'admin'
+}
+
+const VIA_LABEL: Record<CancellationInfo['via'], string> = {
+  email: 'odkazom z potvrdzovacieho emailu',
+  account: 'v zákazníckom účte',
+  admin: 'v administrácii',
+}
+
+export function internalCancellationEmail(c: CancellationInfo): EmailContent {
+  const subject = `[ZRUŠENÁ] ${c.order_number} | ${oneLine(c.company_name)} | IČO ${oneLine(c.ico)}`
+  const json = JSON.stringify({ schema: CANCEL_SCHEMA_VERSION, ...c }, null, 2)
+  const html = layout(
+    subject,
+    `<p style="font-size:18px;margin:0 0 4px;color:#b3261e"><strong>Objednávka ${escapeHtml(c.order_number)} bola zrušená</strong></p>
+<p>Zákazník ${escapeHtml(c.company_name)} (IČO ${escapeHtml(c.ico)}) ju zrušil ${VIA_LABEL[c.via]} – ${escapeHtml(formatDateTimeSk(c.cancelled_at))}.</p>
+<p><strong>Objednávku nespracúvajte.</strong> Ak už bola naimportovaná, zrušte ju aj v internom systéme.</p>
+<pre style="white-space:pre-wrap;font-size:11px;background:#f5f1ea;padding:12px;border-radius:4px">${escapeHtml(json)}</pre>`,
+  )
+  const text = `ZRUŠENÁ OBJEDNÁVKA ${c.order_number}
+Zákazník: ${c.company_name} (IČO ${c.ico})
+Zrušená ${VIA_LABEL[c.via]}: ${formatDateTimeSk(c.cancelled_at)}
+
+Objednávku nespracúvajte. Ak už bola naimportovaná, zrušte ju aj v internom systéme.
+
+${JSON_BEGIN}
+${json}
+${JSON_END}
+`
+  return { subject, html, text }
+}
+
+export function customerCancellationEmail(c: CancellationInfo): EmailContent {
+  const subject = `Objednávka ${c.order_number} bola zrušená – VITAPRO`
+  const html = layout(
+    subject,
+    `<p>Dobrý deň,</p>
+<p>objednávka <strong>${escapeHtml(c.order_number)}</strong> bola zrušená a nebude spracovaná.</p>
+<p style="color:#6f6a63;font-size:13px">Ak ste ju nezadali vy, odporúčame zmeniť si heslo a kontaktovať obchodné oddelenie.</p>`,
+  )
+  const text = `Dobrý deň,
+
+objednávka ${c.order_number} bola zrušená a nebude spracovaná.
+
+Ak ste ju nezadali vy, odporúčame zmeniť si heslo a kontaktovať obchodné oddelenie.
+
+AQUA PRO EUROPE, a.s.`
+  return { subject, html, text }
 }
