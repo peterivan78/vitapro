@@ -44,5 +44,3 @@ next-env.d.ts
 # git worktrees
 .worktrees/
 
-# Licencovaný font GT Sectra – NEcommitovať do verejného repozitára.
-/public/fonts/gt-sectra-*

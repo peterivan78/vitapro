@@ -1,35 +1,5 @@
 @import "tailwindcss";
 
-/* Nadpisový font z etikiet (licencia GT Sectra – webová licencia musí byť zabezpečená). */
-@font-face {
-  font-family: "GT Sectra Display";
-  src: url("/fonts/gt-sectra-display-regular.woff") format("woff");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "GT Sectra Display";
-  src: url("/fonts/gt-sectra-display-regular-italic.woff") format("woff");
-  font-weight: 400;
-  font-style: italic;
-  font-display: swap;
-}
-@font-face {
-  font-family: "GT Sectra Display";
-  src: url("/fonts/gt-sectra-display-bold.woff") format("woff");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: "GT Sectra Display";
-  src: url("/fonts/gt-sectra-display-bold-italic.woff") format("woff");
-  font-weight: 700;
-  font-style: italic;
-  font-display: swap;
-}
-
 @theme {
   --color-paper: #f6f2eb;
   --color-paper-deep: #ede6da;
@@ -44,7 +14,7 @@
   --color-danger: #b3261e;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: "GT Sectra Display", Georgia, "Times New Roman", serif;
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
 }
 
 html {
@@ -52,7 +22,7 @@ html {
   scroll-padding-top: 5rem;
 }
 
-/* Všetky nadpisy v písme z etikiet. */
+/* Všetky nadpisy v nadpisovom písme (Playfair Display – blízke GT Sectra z etikiet). */
 h1,
 h2,
 h3 {
